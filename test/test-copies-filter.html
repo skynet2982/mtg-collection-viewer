@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Copies Filter Tests</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 1200px; margin: 0 auto; }
+    h1 { color: #333; }
+    .test { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+    .test.pass { background: #d4edda; border-color: #c3e6cb; }
+    .test.fail { background: #f8d7da; border-color: #f5c6cb; }
+    .test h3 { margin-top: 0; }
+    .summary { font-size: 1.2em; font-weight: bold; margin: 20px 0; padding: 15px; border-radius: 5px; }
+    .summary.pass { background: #d4edda; color: #155724; }
+    .summary.fail { background: #f8d7da; color: #721c24; }
+    pre { background: #f5f5f5; padding: 10px; border-radius: 3px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>🧪 Copies Filter Tests</h1>
+  <div id="results"></div>
+  <div id="summary"></div>
+
+  <script>
+    const results = [];
+
+    function test(name, fn) {
+      try {
+        fn();
+        results.push({ name, pass: true });
+      } catch (e) {
+        results.push({ name, pass: false, error: e.message });
+      }
+    }
+
+    function assert(condition, message) {
+      if (!condition) throw new Error(message || 'Assertion failed');
+    }
+
+    function assertEquals(actual, expected, message) {
+      if (actual !== expected) {
+        throw new Error(`${message || 'Values not equal'}\nExpected: ${expected}\nActual: ${actual}`);
+      }
+    }
+
+    // Mock collection data
+    const mockCollection = [
+      { name: 'Lightning Bolt', scryfallId: 'id1', oracle_id: 'oracle1', quantity: 1 },
+      { name: 'Lightning Bolt', scryfallId: 'id2', oracle_id: 'oracle1', quantity: 1 }, // Duplicate by oracle_id
+      { name: 'Sol Ring', scryfallId: 'id3', oracle_id: 'oracle2', quantity: 1 },
+      { name: 'Toxrill, the Corrosive', scryfallId: 'id4', oracle_id: 'oracle3', quantity: 1 },
+      { name: 'Gary, the Snail', scryfallId: 'id5', oracle_id: 'oracle3', quantity: 1 }, // Flavor name variant
+      { name: 'Counterspell', scryfallId: 'id6', oracle_id: 'oracle4', quantity: 1 },
+      { name: 'Counterspell', scryfallId: 'id7', oracle_id: 'oracle4', quantity: 1 }, // Another duplicate
+      { name: 'Unique Card', scryfallId: 'id8', oracle_id: 'oracle5', quantity: 1 }, // Unique
+      { name: 'No Oracle ID', scryfallId: 'id9', oracle_id: null, quantity: 1 }, // No oracle_id
+      { name: 'No Oracle ID', scryfallId: 'id10', oracle_id: null, quantity: 1 }, // Duplicate by name only
+    ];
+
+    // Test 1: Count duplicates by oracle_id
+    test('Count duplicates by oracle_id', () => {
+      const nameCounts = {};
+      mockCollection.forEach(c => {
+        const key = c.oracle_id || c.name;
+        nameCounts[key] = (nameCounts[key] || 0) + 1;
+      });
+
+      assertEquals(nameCounts['oracle1'], 2, 'Lightning Bolt should have 2 copies');
+      assertEquals(nameCounts['oracle2'], 1, 'Sol Ring should have 1 copy');
+      assertEquals(nameCounts['oracle3'], 2, 'Toxrill/Gary should have 2 copies (flavor name)');
+      assertEquals(nameCounts['oracle4'], 2, 'Counterspell should have 2 copies');
+      assertEquals(nameCounts['oracle5'], 1, 'Unique Card should have 1 copy');
+      assertEquals(nameCounts['No Oracle ID'], 2, 'Cards without oracle_id should count by name');
+    });
+
+    // Test 2: Filter for duplicates only
+    test('Filter for duplicates only', () => {
+      const nameCounts = {};
+      mockCollection.forEach(c => {
+        const key = c.oracle_id || c.name;
+        nameCounts[key] = (nameCounts[key] || 0) + 1;
+      });
+
+      const duplicates = mockCollection.filter(card => {
+        const duplicateKey = card.oracle_id || card.name;
+        return nameCounts[duplicateKey] > 1;
+      });
+
+      assertEquals(duplicates.length, 8, 'Should find 8 duplicate cards');
+      assert(duplicates.some(c => c.name === 'Lightning Bolt'), 'Should include Lightning Bolt');
+      assert(duplicates.some(c => c.name === 'Toxrill, the Corrosive'), 'Should include Toxrill');
+      assert(duplicates.some(c => c.name === 'Gary, the Snail'), 'Should include Gary (flavor name)');
+      assert(duplicates.some(c => c.name === 'Counterspell'), 'Should include Counterspell');
+      assert(duplicates.some(c => c.name === 'No Oracle ID'), 'Should include cards without oracle_id');
+      assert(!duplicates.some(c => c.name === 'Sol Ring'), 'Should not include Sol Ring');
+      assert(!duplicates.some(c => c.name === 'Unique Card'), 'Should not include Unique Card');
+    });
+
+    // Test 3: Filter for unique only
+    test('Filter for unique only', () => {
+      const nameCounts = {};
+      mockCollection.forEach(c => {
+        const key = c.oracle_id || c.name;
+        nameCounts[key] = (nameCounts[key] || 0) + 1;
+      });
+
+      const unique = mockCollection.filter(card => {
+        const duplicateKey = card.oracle_id || card.name;
+        return nameCounts[duplicateKey] === 1;
+      });
+
+      assertEquals(unique.length, 2, 'Should find 2 unique cards');
+      assert(unique.some(c => c.name === 'Sol Ring'), 'Should include Sol Ring');
+      assert(unique.some(c => c.name === 'Unique Card'), 'Should include Unique Card');
+      assert(!unique.some(c => c.name === 'Lightning Bolt'), 'Should not include Lightning Bolt');
+      assert(!unique.some(c => c.name === 'Toxrill, the Corrosive'), 'Should not include Toxrill');
+      assert(!unique.some(c => c.name === 'Gary, the Snail'), 'Should not include Gary');
+    });
+
+    // Test 4: Flavor name variants are treated as duplicates
+    test('Flavor name variants are treated as duplicates', () => {
+      const nameCounts = {};
+      mockCollection.forEach(c => {
+        const key = c.oracle_id || c.name;
+        nameCounts[key] = (nameCounts[key] || 0) + 1;
+      });
+
+      const toxrill = mockCollection.find(c => c.name === 'Toxrill, the Corrosive');
+      const gary = mockCollection.find(c => c.name === 'Gary, the Snail');
+
+      const toxrillKey = toxrill.oracle_id || toxrill.name;
+      const garyKey = gary.oracle_id || gary.name;
+
+      assertEquals(toxrillKey, garyKey, 'Toxrill and Gary should have same key (oracle_id)');
+      assertEquals(nameCounts[toxrillKey], 2, 'Should count as 2 copies');
+    });
+
+    // Test 5: Cards without oracle_id fall back to name
+    test('Cards without oracle_id fall back to name', () => {
+      const nameCounts = {};
+      mockCollection.forEach(c => {
+        const key = c.oracle_id || c.name;
+        nameCounts[key] = (nameCounts[key] || 0) + 1;
+      });
+
+      const noOracleCards = mockCollection.filter(c => c.name === 'No Oracle ID');
+      assertEquals(noOracleCards.length, 2, 'Should have 2 cards without oracle_id');
+
+      const key = noOracleCards[0].oracle_id || noOracleCards[0].name;
+      assertEquals(nameCounts[key], 2, 'Should count by name when oracle_id is null');
+    });
+
+    // Test 6: renderCardHTML uses oracle_id for duplicate badge
+    test('renderCardHTML uses oracle_id for duplicate badge', () => {
+      const nameCounts = {
+        'oracle1': 2,
+        'oracle2': 1,
+        'oracle3': 2
+      };
+
+      const card1 = { name: 'Lightning Bolt', oracle_id: 'oracle1' };
+      const card2 = { name: 'Sol Ring', oracle_id: 'oracle2' };
+      const card3 = { name: 'Gary, the Snail', oracle_id: 'oracle3' };
+
+      const key1 = card1.oracle_id || card1.name;
+      const key2 = card2.oracle_id || card2.name;
+      const key3 = card3.oracle_id || card3.name;
+
+      assert(nameCounts[key1] > 1, 'Lightning Bolt should be marked as duplicate');
+      assert(nameCounts[key2] === 1, 'Sol Ring should not be marked as duplicate');
+      assert(nameCounts[key3] > 1, 'Gary should be marked as duplicate (flavor name)');
+    });
+
+    // Test 7: Filter values are correct
+    test('Filter dropdown values are correct', () => {
+      const filterValues = ['', 'duplicates', 'unique'];
+      
+      assertEquals(filterValues[0], '', 'First option should be empty (All)');
+      assertEquals(filterValues[1], 'duplicates', 'Second option should be "duplicates"');
+      assertEquals(filterValues[2], 'unique', 'Third option should be "unique"');
+    });
+
+    // Test 8: applyFilters logic for duplicates filter
+    test('applyFilters logic for duplicates filter', () => {
+      const nameCounts = {};
+      mockCollection.forEach(c => {
+        const key = c.oracle_id || c.name;
+        nameCounts[key] = (nameCounts[key] || 0) + 1;
+      });
+
+      // Test "duplicates" filter
+      const duplicatesFilter = 'duplicates';
+      const duplicatesResult = mockCollection.filter(card => {
+        const duplicateKey = card.oracle_id || card.name;
+        return !duplicatesFilter || (duplicatesFilter === 'duplicates' ? nameCounts[duplicateKey] > 1 : nameCounts[duplicateKey] === 1);
+      });
+      assertEquals(duplicatesResult.length, 8, 'Duplicates filter should return 8 cards');
+
+      // Test "unique" filter
+      const uniqueFilter = 'unique';
+      const uniqueResult = mockCollection.filter(card => {
+        const duplicateKey = card.oracle_id || card.name;
+        return !uniqueFilter || (uniqueFilter === 'duplicates' ? nameCounts[duplicateKey] > 1 : nameCounts[duplicateKey] === 1);
+      });
+      assertEquals(uniqueResult.length, 2, 'Unique filter should return 2 cards');
+
+      // Test "" (all) filter
+      const allFilter = '';
+      const allResult = mockCollection.filter(card => {
+        const duplicateKey = card.oracle_id || card.name;
+        return !allFilter || (allFilter === 'duplicates' ? nameCounts[duplicateKey] > 1 : nameCounts[duplicateKey] === 1);
+      });
+      assertEquals(allResult.length, 10, 'All filter should return all 10 cards');
+    });
+
+    // Render results
+    const resultsDiv = document.getElementById('results');
+    const summaryDiv = document.getElementById('summary');
+
+    results.forEach(result => {
+      const div = document.createElement('div');
+      div.className = `test ${result.pass ? 'pass' : 'fail'}`;
+      div.innerHTML = `
+        <h3>${result.pass ? '✅' : '❌'} ${result.name}</h3>
+        ${result.error ? `<pre>${result.error}</pre>` : '<p>Test passed</p>'}
+      `;
+      resultsDiv.appendChild(div);
+    });
+
+    const passed = results.filter(r => r.pass).length;
+    const total = results.length;
+    const allPassed = passed === total;
+
+    summaryDiv.className = `summary ${allPassed ? 'pass' : 'fail'}`;
+    summaryDiv.innerHTML = `
+      <div>${allPassed ? '✅ All tests passed!' : '❌ Some tests failed'}</div>
+      <div>${passed} / ${total} tests passed</div>
+    `;
+  </script>
+</body>
+</html>

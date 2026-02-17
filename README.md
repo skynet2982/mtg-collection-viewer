@@ -184,6 +184,7 @@ The project includes comprehensive test suites:
 - **test/test-card-back.html** - Card back visibility tests (3D flip effects)
 - **test/test-foil-shimmer.html** - Foil shimmer effect standardization tests
 - **test/test-flavor-names.html** - Flavor name support tests (deck checker)
+- **test/test-copies-filter.html** - Copies filter tests (All/Duplicates/Unique with oracle_id)
 
 Open any test file in a browser to run the test suite.
 - [Chart.js](https://www.chartjs.org/) for analytics charts

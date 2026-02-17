@@ -106,6 +106,10 @@
             <option value="Land">Land</option>
             <option value="Planeswalker">Planeswalker</option>
           </select>
+          <div class="filter-group autocomplete-wrapper">
+            <input type="text" id="subtype-filter" placeholder="Filter by subtype..." autocomplete="off">
+            <div id="subtype-autocomplete" class="autocomplete-list"></div>
+          </div>
           <select id="color-filter">
             <option value="">All Colors</option>
             <option value="W">White</option>
@@ -116,16 +120,27 @@
             <option value="C">Colorless</option>
             <option value="M">Multicolor</option>
           </select>
+          <select id="keyword-filter">
+            <option value="">All Keywords</option>
+          </select>
+          <select id="reserved-filter">
+            <option value="">All Cards</option>
+            <option value="yes">Reserved List</option>
+            <option value="no">Non-Reserved</option>
+          </select>
           <select id="duplicates-filter">
             <option value="">Copies: All</option>
             <option value="duplicates">Duplicates</option>
             <option value="unique">Unique</option>
           </select>
           <select id="sort">
-            <option value="price">Price</option>
+            <option value="price-desc">Price (High to Low)</option>
+            <option value="price-asc">Price (Low to High)</option>
             <option value="name">Name</option>
             <option value="rarity">Rarity</option>
             <option value="set">Set</option>
+            <option value="cmc-asc">Mana Value (Low to High)</option>
+            <option value="cmc-desc">Mana Value (High to Low)</option>
           </select>
         </div>
       </div>
