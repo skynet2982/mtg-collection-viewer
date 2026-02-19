@@ -111,7 +111,8 @@ function updateMenuLockIndicator() {
 // Load persisted binder from git
 async function loadPersistedBinder() {
   try {
-    const response = await fetch('data/trading-binder.json');
+    // Add cache-busting timestamp
+    const response = await fetch(`data/trading-binder.json?t=${Date.now()}`);
     if (response.ok) {
       const data = await response.json();
       persistedCards = data.cards || [];
