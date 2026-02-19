@@ -311,8 +311,9 @@ async function loadBinder() {
         try {
           const ids = JSON.parse(stored);
           console.log('Loading from localStorage:', ids.length, 'IDs');
-          binderCards = collection.filter(c => ids.includes(c.scryfallId));
-          console.log('Matched cards:', binderCards.length);
+          // Fetch from Scryfall
+          binderCards = await fetchCardsFromScryfall(ids);
+          console.log('Fetched cards:', binderCards.length);
         } catch (e) {
           console.error('Failed to load binder:', e);
         }
