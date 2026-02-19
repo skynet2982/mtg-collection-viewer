@@ -54,6 +54,7 @@ function renderBinder() {
   if (binderCards.length === 0) {
     container.style.display = 'none';
     emptyState.style.display = 'block';
+    filteredCollection = [];
     updateStats();
     return;
   }
@@ -61,14 +62,19 @@ function renderBinder() {
   container.style.display = 'grid';
   emptyState.style.display = 'none';
   
+  // Set filteredCollection to binderCards and apply filters
+  collection = [...binderCards];
+  filteredCollection = [...binderCards];
+  applyFilters();
+  
   // Count by oracle_id for duplicate badge
   const nameCounts = {};
-  binderCards.forEach(c => {
+  filteredCollection.forEach(c => {
     const key = c.oracle_id || c.name;
     nameCounts[key] = (nameCounts[key] || 0) + 1;
   });
   
-  container.innerHTML = binderCards.map(card => {
+  container.innerHTML = filteredCollection.map(card => {
     let html = renderCardHTML(card, nameCounts);
     // Add remove button before closing div
     const lastDivIndex = html.lastIndexOf('</div>');
@@ -113,12 +119,16 @@ function saveBinder() {
 }
 
 function updateStats() {
-  const count = binderCards.length;
-  const value = binderCards.reduce((sum, c) => sum + getCardPrice(c) * c.quantity, 0);
-  const currency = getPriceSource() === 'scryfall' ? 'USD' : (collection[0]?.currency || 'USD');
+  const count = filteredCollection.length;
+  const value = filteredCollection.reduce((sum, c) => sum + getCardPrice(c) * c.quantity, 0);
+  const currency = getPriceSource() === 'scryfall' ? 'USD' : (binderCards[0]?.currency || 'USD');
   
   document.getElementById('total-cards').textContent = count;
   document.getElementById('total-value').textContent = formatPrice(value, currency);
+}
+
+function onFiltersApplied() {
+  renderBinder();
 }
 
 function generateShareLink() {
