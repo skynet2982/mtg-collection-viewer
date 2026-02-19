@@ -195,15 +195,19 @@ async function fetchCardsFromScryfall(scryfallIds) {
             scryfallId: card.id,
             setCode: card.set.toUpperCase(),
             setName: card.set_name,
+            collectorNumber: card.collector_number,
             rarity: card.rarity,
-            foil: false,
+            foil: 'normal',
             quantity: 1,
             price: parseFloat(usdPrice),
+            currency: 'USD',
             scryfallPrices: card.prices,
             imageUrl: card.image_uris?.normal || card.card_faces?.[0]?.image_uris?.normal,
             types: card.type_line,
             colors: card.colors || [],
-            keywords: card.keywords || []
+            keywords: card.keywords || [],
+            manaCost: card.mana_cost || '',
+            cmc: card.cmc || 0
           });
         }
       }
