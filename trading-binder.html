@@ -8,31 +8,50 @@
   <link rel="icon" href="images/favicon.ico">
 </head>
 <body>
-  <nav>
-    <div class="nav-left">
-      <a href="index.html" class="nav-link">← Back to Collection</a>
+  <div class="nav-menu">
+    <button type="button" class="menu-toggle" id="menu-toggle">☰</button>
+    <div class="menu-overlay" id="menu-overlay"></div>
+    <div class="menu-dropdown" id="menu-dropdown">
+      <div class="menu-header">MTG Collection</div>
+      <div class="menu-section">
+        <div class="menu-section-title">Views</div>
+        <a href="index.html" class="menu-item">⊞ Collection Explorer</a>
+        <a href="binder.html" class="menu-item">📖 Binder View</a>
+        <a href="carousel.html" class="menu-item">🎠 Carousel View</a>
+        <a href="timeline.html" class="menu-item">📅 Timeline View</a>
+      </div>
+      <div class="menu-section">
+        <div class="menu-section-title">Tools</div>
+        <a href="deck-checker.html" class="menu-item">🔍 Deck Checker</a>
+        <a href="trade-calculator.html" class="menu-item">⚖️ Trade Calculator</a>
+        <a href="trading-binder.html" class="menu-item active">📖 Trading Binder</a>
+        <a href="trivia.html" class="menu-item">🎯 Collection Trivia</a>
+        <a href="guess-card.html" class="menu-item">🎴 Guess the Card</a>
+        <a href="game-tracker.html" class="menu-item">🎮 Game Tracker</a>
+        <button type="button" class="menu-btn random" id="menu-random">🎲 Random Card</button>
+        <button type="button" class="menu-btn load-data" id="menu-load-data">📥 Load Full Data</button>
+      </div>
     </div>
+  </div>
+
+  <div class="header">
     <h1>📖 Trading Binder</h1>
-    <div class="nav-right">
-      <span id="binder-count">0 cards</span>
+    <div class="stats-bar">
+      <div class="stat">
+        <span class="stat-label">Cards:</span>
+        <span class="stat-value" id="total-cards">0</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Value:</span>
+        <span class="stat-value" id="total-value">$0.00</span>
+      </div>
     </div>
-  </nav>
+  </div>
 
   <div class="container">
     <div class="binder-actions">
       <button type="button" id="share-binder" class="btn">📋 Copy Share Link</button>
       <button type="button" id="clear-binder" class="btn btn-danger">🗑️ Clear Binder</button>
-    </div>
-
-    <div id="binder-stats" class="stats-bar">
-      <div class="stat">
-        <span class="stat-label">Total Cards:</span>
-        <span class="stat-value" id="total-cards">0</span>
-      </div>
-      <div class="stat">
-        <span class="stat-label">Total Value:</span>
-        <span class="stat-value" id="total-value">$0.00</span>
-      </div>
     </div>
 
     <div id="binder-collection" class="collection"></div>

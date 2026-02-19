@@ -2,7 +2,7 @@
 let binderCards = [];
 
 // Load from localStorage or URL
-function loadBinder() {
+async function loadBinder() {
   const params = new URLSearchParams(window.location.search);
   const shared = params.get('cards');
   
@@ -53,11 +53,13 @@ function renderBinder() {
   });
   
   container.innerHTML = binderCards.map(card => {
-    const html = renderCardHTML(card, nameCounts);
-    // Add remove button
-    return html.replace('</div>', `
-      <button class="remove-from-binder" data-id="${card.scryfallId}" title="Remove from binder">✕</button>
-    </div>`);
+    let html = renderCardHTML(card, nameCounts);
+    // Add remove button before closing div
+    const lastDivIndex = html.lastIndexOf('</div>');
+    html = html.substring(0, lastDivIndex) + 
+      `<button class="remove-from-binder" data-id="${card.scryfallId}" title="Remove from binder">✕</button>` +
+      html.substring(lastDivIndex);
+    return html;
   }).join('');
   
   // Load images
@@ -99,7 +101,6 @@ function updateStats() {
   const value = binderCards.reduce((sum, c) => sum + getCardPrice(c) * c.quantity, 0);
   const currency = getPriceSource() === 'scryfall' ? 'USD' : (collection[0]?.currency || 'USD');
   
-  document.getElementById('binder-count').textContent = `${count} card${count !== 1 ? 's' : ''}`;
   document.getElementById('total-cards').textContent = count;
   document.getElementById('total-value').textContent = formatPrice(value, currency);
 }
@@ -111,7 +112,7 @@ function generateShareLink() {
 }
 
 async function onCollectionLoaded() {
-  loadBinder();
+  await loadBinder();
   
   document.getElementById('share-binder').addEventListener('click', async () => {
     if (binderCards.length === 0) {

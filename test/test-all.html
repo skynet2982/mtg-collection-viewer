@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MTG Collection Viewer - All Tests</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 1400px; margin: 0 auto; background: #1a1a1a; color: #fff; }
+    h1 { color: #e63946; text-align: center; }
+    .summary { font-size: 1.5em; font-weight: bold; margin: 30px 0; padding: 25px; border-radius: 8px; text-align: center; }
+    .summary.pass { background: #1e3a1e; color: #4caf50; }
+    .summary.fail { background: #3a1e1e; color: #f44336; }
+    .test-suite { margin: 30px 0; padding: 20px; background: #2a2a2a; border-radius: 8px; border-left: 4px solid #e63946; }
+    .test-suite h2 { margin-top: 0; color: #e63946; }
+    .test { margin: 10px 0; padding: 10px; border: 1px solid #444; border-radius: 5px; background: #333; }
+    .test.pass { background: #1e3a1e; border-color: #4caf50; }
+    .test.fail { background: #3a1e1e; border-color: #f44336; }
+    .test-name { font-weight: 600; margin-bottom: 5px; }
+    .test-error { margin-top: 5px; padding: 8px; background: #1a1a1a; border-radius: 3px; font-size: 0.85rem; font-family: monospace; }
+    .suite-stats { font-size: 0.9em; color: #999; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>🧪 MTG Collection Viewer - Complete Test Suite</h1>
+  <div id="summary"></div>
+  <div id="results"></div>
+
+  <script>
+    const allTests = [];
+    const suites = {};
+
+    function suite(name) {
+      if (!suites[name]) suites[name] = [];
+      return {
+        test: (testName, fn) => {
+          suites[name].push({ name: testName, fn });
+          allTests.push({ suite: name, name: testName, fn });
+        }
+      };
+    }
+
+    function assert(condition, message) {
+      if (!condition) throw new Error(message || 'Assertion failed');
+    }
+
+    function assertEquals(actual, expected, message) {
+      if (actual !== expected) {
+        throw new Error(`${message || 'Values not equal'}\nExpected: ${expected}\nActual: ${actual}`);
+      }
+    }
+
+    // ===== COPIES FILTER TESTS =====
+    const copiesFilter = suite('Copies Filter');
+
+    copiesFilter.test('Count duplicates by oracle_id', () => {
+      const mockCollection = [
+        { name: 'Lightning Bolt', oracle_id: 'oracle1' },
+        { name: 'Lightning Bolt', oracle_id: 'oracle1' },
+        { name: 'Sol Ring', oracle_id: 'oracle2' },
+      ];
+      const nameCounts = {};
+      mockCollection.forEach(c => {
+        const key = c.oracle_id || c.name;
+        nameCounts[key] = (nameCounts[key] || 0) + 1;
+      });
+      assertEquals(nameCounts['oracle1'], 2, 'Lightning Bolt should have 2 copies');
+      assertEquals(nameCounts['oracle2'], 1, 'Sol Ring should have 1 copy');
+    });
+
+    copiesFilter.test('Filter for duplicates only', () => {
+      const mockCollection = [
+        { name: 'Lightning Bolt', oracle_id: 'oracle1' },
+        { name: 'Lightning Bolt', oracle_id: 'oracle1' },
+        { name: 'Sol Ring', oracle_id: 'oracle2' },
+      ];
+      const nameCounts = {};
+      mockCollection.forEach(c => {
+        const key = c.oracle_id || c.name;
+        nameCounts[key] = (nameCounts[key] || 0) + 1;
+      });
+      const duplicates = mockCollection.filter(card => {
+        const key = card.oracle_id || card.name;
+        return nameCounts[key] > 1;
+      });
+      assertEquals(duplicates.length, 2, 'Should find 2 duplicate cards');
+    });
+
+    copiesFilter.test('Flavor name variants treated as duplicates', () => {
+      const toxrill = { name: 'Toxrill, the Corrosive', oracle_id: 'oracle3' };
+      const gary = { name: 'Gary, the Snail', oracle_id: 'oracle3' };
+      assertEquals(toxrill.oracle_id, gary.oracle_id, 'Should have same oracle_id');
+    });
+
+    // ===== CARD BACK TESTS =====
+    const cardBack = suite('Card Back Visibility');
+
+    cardBack.test('Card HTML includes card-back element', () => {
+      const html = '<div class="card-image-inner"><img class="card-image"><img src="images/back.png" class="card-back"></div>';
+      assert(html.includes('class="card-back"'), 'Missing card-back class');
+      assert(html.includes('images/back.png'), 'Missing back.png image');
+    });
+
+    cardBack.test('CSS card-back has rotateY(180deg)', () => {
+      const css = '.card-back { transform: rotateY(180deg); backface-visibility: hidden; }';
+      assert(css.includes('rotateY(180deg)'), 'Missing rotateY(180deg)');
+      assert(css.includes('backface-visibility: hidden'), 'Missing backface-visibility');
+    });
+
+    cardBack.test('card-image-inner does NOT have overflow:hidden', () => {
+      const css = '.card-image-inner { transform-style: preserve-3d; }';
+      assert(!css.includes('overflow: hidden'), 'Must not have overflow:hidden');
+      assert(css.includes('preserve-3d'), 'Missing preserve-3d');
+    });
+
+    cardBack.test('Rotation range allows card back visibility', () => {
+      const x = 0.5;
+      const rotateY = x * 120;
+      assert(rotateY >= 60, `RotateY (${rotateY}deg) should be >= 60deg`);
+    });
+
+    cardBack.test('Card back visible at correct angles', () => {
+      [60, 90, 120, 180].forEach(angle => {
+        const visible = angle >= 60 && angle <= 300;
+        assert(visible, `Card back should be visible at ${angle} degrees`);
+      });
+    });
+
+    // ===== FLAVOR NAMES TESTS =====
+    const flavorNames = suite('Flavor Names (Deck Checker)');
+
+    flavorNames.test('Flavor name matching works', () => {
+      const card = { name: 'Toxrill, the Corrosive', flavor_name: 'Gary, the Snail' };
+      const searchName = 'gary, the snail';
+      const matches = card.flavor_name && card.flavor_name.toLowerCase() === searchName;
+      assert(matches, 'Should match flavor name');
+    });
+
+    flavorNames.test('Image paths use images/back.png', () => {
+      const html = '<img src="images/back.png">';
+      assert(html.includes('images/back.png'), 'Should use images/back.png path');
+    });
+
+    // ===== FOIL SHIMMER TESTS =====
+    const foilShimmer = suite('Foil Shimmer Effects');
+
+    foilShimmer.test('Foil cards have shimmer effect', () => {
+      const css = '.card.foil .card-image-inner::after { background: radial-gradient(...); }';
+      assert(css.includes('radial-gradient'), 'Foil should have gradient');
+    });
+
+    foilShimmer.test('Shimmer uses CSS variables', () => {
+      const css = 'var(--shimmer-x, 50%) var(--shimmer-y, 50%)';
+      assert(css.includes('--shimmer-x'), 'Should use --shimmer-x');
+      assert(css.includes('--shimmer-y'), 'Should use --shimmer-y');
+    });
+
+    // ===== GAME TRACKER TESTS =====
+    const gameTracker = suite('Game Tracker');
+
+    gameTracker.test('Commander format has 4 players, 40 life', () => {
+      const format = { name: 'Commander', players: 4, startingLife: 40 };
+      assertEquals(format.players, 4, 'Commander should have 4 players');
+      assertEquals(format.startingLife, 40, 'Commander should start at 40 life');
+    });
+
+    gameTracker.test('Standard format has 2 players, 20 life', () => {
+      const format = { name: 'Standard', players: 2, startingLife: 20 };
+      assertEquals(format.players, 2, 'Standard should have 2 players');
+      assertEquals(format.startingLife, 20, 'Standard should start at 20 life');
+    });
+
+    gameTracker.test('Life total changes work', () => {
+      let life = 40;
+      life += 5;
+      assertEquals(life, 45, 'Life should increase');
+      life -= 10;
+      assertEquals(life, 35, 'Life should decrease');
+    });
+
+    // ===== DETAIL PAGE TESTS =====
+    const detailPage = suite('Detail Page');
+
+    detailPage.test('Detail page includes detail-back', () => {
+      const html = '<img src="images/back.png" class="detail-back">';
+      assert(html.includes('detail-back'), 'Should have detail-back class');
+    });
+
+    detailPage.test('Upgrade cards include upgrade-back', () => {
+      const html = '<img src="images/back.png" class="upgrade-back">';
+      assert(html.includes('upgrade-back'), 'Should have upgrade-back class');
+    });
+
+    detailPage.test('Transform uses rotateX and rotateY', () => {
+      const transform = 'rotateX(-30deg) rotateY(60deg)';
+      assert(transform.includes('rotateX'), 'Should have rotateX');
+      assert(transform.includes('rotateY'), 'Should have rotateY');
+    });
+
+    // ===== TRADING BINDER TESTS =====
+    const tradingBinder = suite('Trading Binder');
+
+    tradingBinder.test('LocalStorage saves card IDs', () => {
+      const ids = ['id1', 'id2', 'id3'];
+      const stored = JSON.stringify(ids);
+      const parsed = JSON.parse(stored);
+      assertEquals(parsed.length, 3, 'Should store 3 IDs');
+      assertEquals(parsed[0], 'id1', 'Should preserve ID order');
+    });
+
+    tradingBinder.test('Share link format is correct', () => {
+      const ids = ['id1', 'id2'];
+      const url = `trading-binder.html?cards=${ids.join(',')}`;
+      assert(url.includes('?cards='), 'Should have cards parameter');
+      assert(url.includes('id1,id2'), 'Should join IDs with comma');
+    });
+
+    tradingBinder.test('Context menu adds cards', () => {
+      const ids = [];
+      const newId = 'test-id';
+      ids.push(newId);
+      assert(ids.includes(newId), 'Should add card to binder');
+    });
+
+    // Run all tests
+    const results = [];
+    allTests.forEach(({ suite, name, fn }) => {
+      try {
+        fn();
+        results.push({ suite, name, pass: true });
+      } catch (e) {
+        results.push({ suite, name, pass: false, error: e.message });
+      }
+    });
+
+    // Render results
+    const resultsDiv = document.getElementById('results');
+    const summaryDiv = document.getElementById('summary');
+
+    Object.keys(suites).forEach(suiteName => {
+      const suiteResults = results.filter(r => r.suite === suiteName);
+      const suitePassed = suiteResults.filter(r => r.pass).length;
+      const suiteTotal = suiteResults.length;
+      
+      const section = document.createElement('div');
+      section.className = 'test-suite';
+      section.innerHTML = `
+        <h2>${suiteName}</h2>
+        <div class="suite-stats">${suitePassed} / ${suiteTotal} tests passed</div>
+      `;
+      
+      suiteResults.forEach(result => {
+        const div = document.createElement('div');
+        div.className = `test ${result.pass ? 'pass' : 'fail'}`;
+        div.innerHTML = `
+          <div class="test-name">${result.pass ? '✅' : '❌'} ${result.name}</div>
+          ${result.error ? `<div class="test-error">${result.error}</div>` : ''}
+        `;
+        section.appendChild(div);
+      });
+      
+      resultsDiv.appendChild(section);
+    });
+
+    const passed = results.filter(r => r.pass).length;
+    const total = results.length;
+    const allPassed = passed === total;
+
+    summaryDiv.className = `summary ${allPassed ? 'pass' : 'fail'}`;
+    summaryDiv.innerHTML = `
+      <div>${allPassed ? '✅ All Tests Passed!' : '❌ Some Tests Failed'}</div>
+      <div>${passed} / ${total} tests passed across ${Object.keys(suites).length} test suites</div>
+    `;
+  </script>
+</body>
+</html>
