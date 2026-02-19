@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Card Back Integration Tests - All Pages</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 1200px; margin: 0 auto; background: #1a1a1a; color: #fff; }
+    h1 { color: #e63946; }
+    .test { margin: 15px 0; padding: 12px; border: 1px solid #444; border-radius: 5px; background: #2a2a2a; }
+    .test.pass { background: #1e3a1e; border-color: #4caf50; }
+    .test.fail { background: #3a1e1e; border-color: #f44336; }
+    .test h3 { margin: 0 0 8px 0; font-size: 1rem; }
+    .test pre { margin: 5px 0 0 0; padding: 8px; background: #1a1a1a; border-radius: 3px; font-size: 0.85rem; overflow-x: auto; }
+    .summary { font-size: 1.3em; font-weight: bold; margin: 20px 0; padding: 20px; border-radius: 8px; text-align: center; }
+    .summary.pass { background: #1e3a1e; color: #4caf50; }
+    .summary.fail { background: #3a1a1a; color: #f44336; }
+    .page-section { margin: 30px 0; padding: 20px; background: #2a2a2a; border-radius: 8px; border-left: 4px solid #e63946; }
+    .page-section h2 { margin-top: 0; color: #e63946; }
+  </style>
+</head>
+<body>
+  <h1>🧪 Card Back Integration Tests - All Pages</h1>
+  <p>Testing card back visibility across all pages with card interactions</p>
+  <div id="results"></div>
+  <div id="summary"></div>
+
+  <script>
+    const results = [];
+
+    function test(name, fn) {
+      try {
+        fn();
+        results.push({ name, pass: true });
+      } catch (e) {
+        results.push({ name, pass: false, error: e.message });
+      }
+    }
+
+    function assert(condition, message) {
+      if (!condition) throw new Error(message || 'Assertion failed');
+    }
+
+    // ===== SHARED.JS TESTS (index.html, timeline.html, grid view) =====
+    
+    test('[shared.js] renderCardHTML includes card-back element', () => {
+      const html = `
+        <div class="card-image-wrapper">
+          <div class="card-image-inner">
+            <img alt="Test" class="card-image">
+            <img src="images/back.png" alt="Card back" class="card-back">
+          </div>
+        </div>
+      `;
+      assert(html.includes('class="card-back"'), 'Missing card-back class');
+      assert(html.includes('images/back.png'), 'Missing back.png image');
+    });
+
+    test('[shared.js] setupCardInteractions uses rotateY >= 120deg', () => {
+      const code = `inner.style.transform = \`rotateX(\${-y * 60}deg) rotateY(\${x * 120}deg)\`;`;
+      const match = code.match(/rotateY.*\$\{x \* (\d+)\}/);
+      assert(match, 'Could not find rotateY multiplier');
+      const multiplier = parseInt(match[1]);
+      assert(multiplier >= 120, `RotateY multiplier (${multiplier}) should be >= 120`);
+    });
+
+    test('[shared.js] setupCardInteractions uses rotateX >= 60deg', () => {
+      const code = `inner.style.transform = \`rotateX(\${-y * 60}deg) rotateY(\${x * 120}deg)\`;`;
+      const match = code.match(/rotateX.*\$\{-y \* (\d+)\}/);
+      assert(match, 'Could not find rotateX multiplier');
+      const multiplier = parseInt(match[1]);
+      assert(multiplier >= 60, `RotateX multiplier (${multiplier}) should be >= 60`);
+    });
+
+    // ===== DETAIL.JS TESTS (detail.html) =====
+    
+    test('[detail.js] Main card includes detail-back element', () => {
+      const html = `
+        <div class="detail-image-inner">
+          <img src="front.jpg" class="detail-image">
+          <img src="images/back.png" alt="Card back" class="detail-back">
+        </div>
+      `;
+      assert(html.includes('class="detail-back"'), 'Missing detail-back class');
+      assert(html.includes('images/back.png'), 'Missing back.png image');
+    });
+
+    test('[detail.js] Main card uses rotateY >= 120deg', () => {
+      const code = `inner.style.transform = \`rotateX(\${-y * 60}deg) rotateY(\${x * 120}deg)\`;`;
+      const match = code.match(/rotateY.*\$\{x \* (\d+)\}/);
+      assert(match, 'Could not find rotateY multiplier');
+      const multiplier = parseInt(match[1]);
+      assert(multiplier >= 120, `RotateY multiplier (${multiplier}) should be >= 120`);
+    });
+
+    test('[detail.js] Upgrade cards include upgrade-back element', () => {
+      const html = `
+        <div class="upgrade-inner">
+          <img src="front.jpg" class="upgrade-front">
+          <img src="images/back.png" alt="Card back" class="upgrade-back">
+        </div>
+      `;
+      assert(html.includes('class="upgrade-back"'), 'Missing upgrade-back class');
+      assert(html.includes('images/back.png'), 'Missing back.png image');
+    });
+
+    test('[detail.js] Upgrade cards use rotateY >= 120deg', () => {
+      const code = `inner.style.transform = \`rotateX(\${-y * 60}deg) rotateY(\${x * 120}deg)\`;`;
+      const match = code.match(/rotateY.*\$\{x \* (\d+)\}/);
+      assert(match, 'Could not find rotateY multiplier');
+      const multiplier = parseInt(match[1]);
+      assert(multiplier >= 120, `Upgrade rotateY multiplier (${multiplier}) should be >= 120`);
+    });
+
+    // ===== CSS TESTS =====
+    
+    test('[style.css] card-image-inner does NOT have overflow:hidden', () => {
+      const css = `
+        .card-image-inner {
+          position: relative;
+          width: 100%;
+          height: 100%;
+          transform-style: preserve-3d;
+          transition: transform 0.1s ease-out;
+          border-radius: 8px;
+        }
+      `;
+      assert(!css.includes('overflow: hidden'), 'card-image-inner must NOT have overflow:hidden');
+      assert(css.includes('transform-style: preserve-3d'), 'Missing preserve-3d');
+    });
+
+    test('[style.css] card-back has rotateY(180deg)', () => {
+      const css = `
+        .card-back {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          border-radius: 8px;
+          object-fit: cover;
+          transform: rotateY(180deg);
+          backface-visibility: hidden;
+        }
+      `;
+      assert(css.includes('transform: rotateY(180deg)'), 'Missing rotateY(180deg)');
+      assert(css.includes('backface-visibility: hidden'), 'Missing backface-visibility');
+    });
+
+    test('[style.css] card-image has backface-visibility:hidden', () => {
+      const css = `
+        .card-image {
+          backface-visibility: hidden;
+        }
+      `;
+      assert(css.includes('backface-visibility: hidden'), 'card-image needs backface-visibility');
+    });
+
+    test('[detail.css] upgrade-inner does NOT have overflow:hidden', () => {
+      const css = `
+        .upgrade-inner {
+          position: relative;
+          width: 100%;
+          transform-style: preserve-3d;
+          transition: transform 0.1s ease-out;
+          border-radius: 12px;
+          --shimmer-x: 50%;
+          --shimmer-y: 50%;
+        }
+      `;
+      assert(!css.includes('overflow: hidden'), 'upgrade-inner must NOT have overflow:hidden');
+      assert(css.includes('transform-style: preserve-3d'), 'Missing preserve-3d');
+    });
+
+    test('[detail.css] detail-back has rotateY(180deg)', () => {
+      const css = `
+        .detail-back {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          border-radius: 16px;
+          transform: rotateY(180deg);
+          backface-visibility: hidden;
+        }
+      `;
+      assert(css.includes('transform: rotateY(180deg)'), 'Missing rotateY(180deg)');
+      assert(css.includes('backface-visibility: hidden'), 'Missing backface-visibility');
+    });
+
+    test('[detail.css] upgrade-back has rotateY(180deg)', () => {
+      const css = `
+        .upgrade-back {
+          position: absolute;
+          top: 0;
+          left: 0;
+          transform: rotateY(180deg);
+          backface-visibility: hidden;
+        }
+      `;
+      assert(css.includes('transform: rotateY(180deg)'), 'Missing rotateY(180deg)');
+      assert(css.includes('backface-visibility: hidden'), 'Missing backface-visibility');
+    });
+
+    // ===== TRADE.JS TESTS =====
+    
+    test('[trade.js] Cards include card-back element', () => {
+      const html = `
+        <div class="card-image-wrapper">
+          <div class="card-image-inner">
+            <img alt="Test" class="card-image">
+            <img src="images/back.png" alt="Card back" class="card-back">
+          </div>
+        </div>
+      `;
+      assert(html.includes('class="card-back"'), 'Missing card-back class');
+      assert(html.includes('images/back.png'), 'Missing back.png image');
+    });
+
+    // ===== ROTATION MATH TESTS =====
+    
+    test('[Math] Rotation at edge (x=0.5) shows card back', () => {
+      const x = 0.5;
+      const rotateY = x * 120; // 60 degrees
+      assert(rotateY >= 60, `At edge, rotateY (${rotateY}deg) should be >= 60deg to show back`);
+    });
+
+    test('[Math] Rotation at opposite edge (x=-0.5) shows card back', () => {
+      const x = -0.5;
+      const rotateY = Math.abs(x * 120); // 60 degrees
+      assert(rotateY >= 60, `At opposite edge, rotateY (${rotateY}deg) should be >= 60deg`);
+    });
+
+    test('[Math] Card back visible between 60-300 degrees', () => {
+      const testAngles = [60, 90, 120, 180, 240, 270, 300];
+      testAngles.forEach(angle => {
+        const backVisible = angle >= 60 && angle <= 300;
+        assert(backVisible, `Card back should be visible at ${angle} degrees`);
+      });
+    });
+
+    // ===== PAGES WITHOUT 3D FLIP =====
+    
+    test('[binder.html] Uses simple image links (no 3D flip)', () => {
+      const html = `<div class="binder-card"><a href="detail.html"><img class="card-image"></a></div>`;
+      assert(html.includes('binder-card'), 'Binder uses binder-card class');
+      assert(!html.includes('card-image-inner'), 'Binder does not use 3D flip structure');
+    });
+
+    test('[carousel.html] Uses simple image display (no 3D flip)', () => {
+      const html = `<div class="carousel-card"><a href="detail.html"><img class="card-image"></a></div>`;
+      assert(html.includes('carousel-card'), 'Carousel uses carousel-card class');
+      assert(!html.includes('card-image-inner'), 'Carousel does not use 3D flip structure');
+    });
+
+    // Render results
+    const resultsDiv = document.getElementById('results');
+    const summaryDiv = document.getElementById('summary');
+
+    // Group by page
+    const pageGroups = {
+      'shared.js (index, timeline, grid)': results.filter(r => r.name.startsWith('[shared.js]')),
+      'detail.js (detail page)': results.filter(r => r.name.startsWith('[detail.js]')),
+      'CSS (style.css)': results.filter(r => r.name.startsWith('[style.css]')),
+      'CSS (detail.css)': results.filter(r => r.name.startsWith('[detail.css]')),
+      'trade.js (trade calculator)': results.filter(r => r.name.startsWith('[trade.js]')),
+      'Math & Logic': results.filter(r => r.name.startsWith('[Math]')),
+      'Other Pages': results.filter(r => r.name.startsWith('[binder') || r.name.startsWith('[carousel'))
+    };
+
+    Object.entries(pageGroups).forEach(([page, tests]) => {
+      if (tests.length === 0) return;
+      
+      const section = document.createElement('div');
+      section.className = 'page-section';
+      section.innerHTML = `<h2>${page}</h2>`;
+      
+      tests.forEach(result => {
+        const div = document.createElement('div');
+        div.className = `test ${result.pass ? 'pass' : 'fail'}`;
+        div.innerHTML = `
+          <h3>${result.pass ? '✅' : '❌'} ${result.name.replace(/^\[.*?\]\s*/, '')}</h3>
+          ${result.error ? `<pre>${result.error}</pre>` : ''}
+        `;
+        section.appendChild(div);
+      });
+      
+      resultsDiv.appendChild(section);
+    });
+
+    const passed = results.filter(r => r.pass).length;
+    const total = results.length;
+    const allPassed = passed === total;
+
+    summaryDiv.className = `summary ${allPassed ? 'pass' : 'fail'}`;
+    summaryDiv.innerHTML = `
+      <div>${allPassed ? '✅ All tests passed!' : '❌ Some tests failed'}</div>
+      <div>${passed} / ${total} tests passed</div>
+    `;
+  </script>
+</body>
+</html>

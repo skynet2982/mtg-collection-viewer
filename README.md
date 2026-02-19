@@ -182,6 +182,7 @@ The project includes comprehensive test suites:
 - **test/test-game-tracker.html** - Game tracker functionality tests
 - **test/test-detail.html** - Card detail page tests  
 - **test/test-card-back.html** - Card back visibility tests (3D flip effects)
+- **test/test-card-back-integration.html** - Card back integration tests across all pages
 - **test/test-foil-shimmer.html** - Foil shimmer effect standardization tests
 - **test/test-flavor-names.html** - Flavor name support tests (deck checker)
 - **test/test-copies-filter.html** - Copies filter tests (All/Duplicates/Unique with oracle_id)
