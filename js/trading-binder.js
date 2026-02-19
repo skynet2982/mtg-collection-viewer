@@ -365,7 +365,8 @@ async function loadBinder() {
     filteredCollection = [...binderCards];
   }
   
-  renderBinder();
+  // Apply filters and sorting
+  applyFilters();
 }
 
 function renderBinder() {
