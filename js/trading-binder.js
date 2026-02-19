@@ -144,6 +144,12 @@ function generateShareLink() {
 async function onCollectionLoaded() {
   await loadBinder();
   
+  // Setup collapsible filters
+  document.getElementById('filters-toggle')?.addEventListener('click', function() {
+    this.classList.toggle('expanded');
+    document.getElementById('filters-content').classList.toggle('collapsed');
+  });
+  
   document.getElementById('share-binder').addEventListener('click', async () => {
     if (binderCards.length === 0) {
       alert('Add some cards to your binder first!');
