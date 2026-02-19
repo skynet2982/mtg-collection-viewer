@@ -321,15 +321,10 @@ async function loadBinder() {
       if (persistedCards.length > 0) {
         console.log('Loading from git file:', persistedCards.length, 'cards');
         const ids = persistedCards.map(c => c.scryfallId);
-        binderCards = collection.filter(c => ids.includes(c.scryfallId));
         
-        // Fetch missing cards from Scryfall
-        const missingIds = ids.filter(id => !binderCards.find(c => c.scryfallId === id));
-        if (missingIds.length > 0) {
-          console.log('Fetching', missingIds.length, 'cards from Scryfall...');
-          const fetchedCards = await fetchCardsFromScryfall(missingIds);
-          binderCards = [...binderCards, ...fetchedCards];
-        }
+        // Fetch all cards from Scryfall
+        console.log('Fetching', ids.length, 'cards from Scryfall...');
+        binderCards = await fetchCardsFromScryfall(ids);
         
         // Only save to localStorage if unlocked
         if (!isLocked) {
