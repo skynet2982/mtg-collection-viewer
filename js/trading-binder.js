@@ -291,6 +291,22 @@ async function loadBinder() {
   // Sync state
   syncBinder();
   
+  // Load full data for binder cards if needed
+  const needsData = binderCards.some(c => !c.types || !c.colors);
+  if (needsData) {
+    console.log('Loading full data for binder cards...');
+    await loadFullCardData(() => {}, false);
+    // Reload binder cards with updated data
+    if (isLocked) {
+      binderCards = collection.filter(c => persistedIds.includes(c.scryfallId));
+    } else {
+      const localIds = JSON.parse(localStorage.getItem('tradingBinderCards') || '[]');
+      binderCards = collection.filter(c => localIds.includes(c.scryfallId));
+    }
+    collection = [...binderCards];
+    filteredCollection = [...binderCards];
+  }
+  
   renderBinder();
 }
 
