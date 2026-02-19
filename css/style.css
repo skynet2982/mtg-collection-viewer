@@ -457,7 +457,7 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   gap: 15px;
-  row-gap: 20px;
+  row-gap: 30px;
   margin-bottom: 25px;
   justify-content: center;
   align-items: center;
@@ -490,21 +490,25 @@ h1 {
 
 .filter-group {
   position: relative;
+  margin-bottom: 5px;
 }
 
 .filter-group.price-slider {
   min-width: 200px;
-  padding-bottom: 20px;
-  margin-bottom: 10px;
+  padding-bottom: 25px;
+  margin-bottom: 15px;
+  flex-basis: 100%;
 }
 
 .filter-group.price-slider label {
   display: block;
-  margin-bottom: 12px;
+  margin-bottom: 15px;
+  font-size: 0.9rem;
 }
 
 .filter-group.price-slider #price-range {
-  margin-top: 8px;
+  margin-top: 10px;
+  height: 8px;
 }
 
 .filter-group.color-identity-filter {
