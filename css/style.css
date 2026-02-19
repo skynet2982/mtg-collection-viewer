@@ -2688,7 +2688,9 @@ h1 {
 .binder-actions {
   display: flex;
   gap: 10px;
-  margin: 20px 0;
+  margin: 20px auto;
+  max-width: 1400px;
+  padding: 0 20px;
   flex-wrap: wrap;
 }
 
