@@ -191,6 +191,11 @@ function removeFromBinder(scryfallId) {
   filteredCollection = [...binderCards];
   syncBinder();
   applyFilters();
+  
+  // Remind user to download if they have changes
+  if (localOnlyCards.length > 0 || removedCards.length > 0) {
+    showNotification('💾 Remember to download and commit the file to persist changes');
+  }
 }
 
 function saveBinder() {
