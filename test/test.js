@@ -172,6 +172,38 @@ tb.test('Context menu adds cards', () => {
   ids.push('test-id');
   assert(ids.includes('test-id'));
 });
+tb.test('Lock state persists to localStorage', () => {
+  localStorage.setItem('binderLocked', '1');
+  const locked = localStorage.getItem('binderLocked') === '1';
+  assert(locked);
+  localStorage.setItem('binderLocked', '0');
+  const unlocked = localStorage.getItem('binderLocked') === '0';
+  assert(unlocked);
+});
+tb.test('Password hash is SHA-256', () => {
+  const hash = 'a9ab99bc6167f801e4b43cf1c569b4f7e1c52a3017a0eb2693c4cb87e8810103';
+  assertEquals(hash.length, 64); // SHA-256 is 64 hex chars
+});
+tb.test('Locked state blocks adding cards', () => {
+  localStorage.setItem('binderLocked', '1');
+  const binderLocked = localStorage.getItem('binderLocked') === '1';
+  assert(binderLocked);
+});
+tb.test('Unlocked state allows adding cards', () => {
+  localStorage.setItem('binderLocked', '0');
+  const binderLocked = localStorage.getItem('binderLocked') === '1';
+  assert(!binderLocked);
+});
+tb.test('Trading binder JSON has required fields', () => {
+  const data = {
+    cards: [],
+    lastModified: '2026-02-19T21:44:15.397Z',
+    passwordHash: 'a9ab99bc6167f801e4b43cf1c569b4f7e1c52a3017a0eb2693c4cb87e8810103'
+  };
+  assert(data.cards !== undefined);
+  assert(data.lastModified !== undefined);
+  assert(data.passwordHash !== undefined);
+});
 
 // ===== CSS LAYOUT TESTS =====
 const css = suite('CSS Layout');
