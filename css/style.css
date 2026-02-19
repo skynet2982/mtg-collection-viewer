@@ -493,6 +493,16 @@ h1 {
 
 .filter-group.price-slider {
   min-width: 200px;
+  padding-bottom: 10px;
+}
+
+.filter-group.price-slider label {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.filter-group.price-slider #price-range {
+  margin-top: 5px;
 }
 
 .filter-group.color-identity-filter {
