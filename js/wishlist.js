@@ -162,6 +162,14 @@ function renderWishlist() {
     return html;
   }).join('');
   
+  // Load images
+  container.querySelectorAll('.card-image-wrapper').forEach(wrapper => {
+    const card = wrapper.closest('.card');
+    const img = wrapper.querySelector('.card-image');
+    const id = card.dataset.scryfallId;
+    fetchCardImage(id).then(url => { if (url) img.src = url; });
+  });
+  
   setupCardInteractions(container);
   
   if (!isLocked) {
