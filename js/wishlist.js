@@ -391,16 +391,15 @@ function showSearchModal() {
   input.oninput = doSearch;
   sortSelect.onchange = doSearch;
   setFilter.oninput = () => {
-    // Set autocomplete
     const val = setFilter.value.trim().toLowerCase();
     const dropdown = document.getElementById('set-search-autocomplete');
     if (!val || val.length < 2) {
       dropdown.innerHTML = '';
+      dropdown.classList.remove('show');
       doSearch();
       return;
     }
     
-    // Fetch matching sets from Scryfall
     fetch(`https://api.scryfall.com/sets`)
       .then(r => r.json())
       .then(data => {
@@ -408,17 +407,25 @@ function showSearchModal() {
           s.name.toLowerCase().includes(val) || s.code.toLowerCase().includes(val)
         ).slice(0, 8);
         
+        if (matches.length === 0) {
+          dropdown.innerHTML = '';
+          dropdown.classList.remove('show');
+          return;
+        }
+        
         dropdown.innerHTML = matches.map(s => 
-          `<div class="autocomplete-item" data-code="${s.code}" style="padding: 8px 12px; cursor: pointer; display: flex; justify-content: space-between;">
+          `<div class="autocomplete-item" data-code="${s.code}">
             <span>${s.name}</span>
-            <span style="color: var(--text-secondary);">${s.code.toUpperCase()}</span>
+            <span style="color: var(--text-secondary); margin-left: 10px;">${s.code.toUpperCase()}</span>
           </div>`
         ).join('');
+        dropdown.classList.add('show');
         
         dropdown.querySelectorAll('.autocomplete-item').forEach(item => {
           item.addEventListener('click', () => {
             setFilter.value = item.dataset.code;
             dropdown.innerHTML = '';
+            dropdown.classList.remove('show');
             doSearch();
           });
         });
