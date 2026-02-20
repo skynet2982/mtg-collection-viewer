@@ -4,12 +4,9 @@ let persistedCards = [];
 let isLocked = true;
 let passwordHash = null;
 
-// Lock state
 window.isLocked = true;
 
-// Initialize
 async function initWishlist() {
-  // Check lock state
   const lockState = localStorage.getItem('wishlistLocked');
   isLocked = lockState === null || lockState === '1';
   window.isLocked = isLocked;
@@ -19,22 +16,18 @@ async function initWishlist() {
   setupEventListeners();
 }
 
-// Load persisted wishlist from git
 async function loadPersistedWishlist() {
   try {
     const response = await fetch(`data/wishlist.json?t=${Date.now()}`);
     if (response.ok) {
       const data = await response.json();
       persistedCards = data.cards || [];
-      return persistedCards;
     }
   } catch (e) {
     console.log('No persisted wishlist file found');
   }
-  return [];
 }
 
-// Load password hash
 async function loadPasswordHash() {
   try {
     const response = await fetch(`data/admin-password.json?t=${Date.now()}`);
@@ -47,7 +40,6 @@ async function loadPasswordHash() {
   }
 }
 
-// Fetch cards from Scryfall by ID
 async function fetchCardsFromScryfall(scryfallIds) {
   const cards = [];
   const batchSize = 75;
@@ -64,26 +56,7 @@ async function fetchCardsFromScryfall(scryfallIds) {
       if (response.ok) {
         const data = await response.json();
         for (const card of data.data) {
-          const usdPrice = card.prices?.usd || card.prices?.usd_foil || card.prices?.usd_etched || '0';
-          cards.push({
-            name: card.name,
-            scryfallId: card.id,
-            setCode: card.set.toUpperCase(),
-            setName: card.set_name,
-            collectorNumber: card.collector_number,
-            rarity: card.rarity,
-            foil: 'normal',
-            quantity: 1,
-            price: parseFloat(card.prices?.usd || '0'),
-            currency: 'USD',
-            scryfallPrices: card.prices,
-            imageUrl: card.image_uris?.normal || card.card_faces?.[0]?.image_uris?.normal,
-            types: card.type_line,
-            colors: card.colors || [],
-            keywords: card.keywords || [],
-            manaCost: card.mana_cost || '',
-            cmc: card.cmc || 0
-          });
+          cards.push(scryfallToCard(card));
         }
       }
       
@@ -94,11 +67,33 @@ async function fetchCardsFromScryfall(scryfallIds) {
       console.error('Failed to fetch batch:', e);
     }
   }
-  
   return cards;
 }
 
-// Load wishlist
+// Convert Scryfall API card to our card format
+function scryfallToCard(card) {
+  return {
+    name: card.name,
+    scryfallId: card.id,
+    setCode: card.set.toUpperCase(),
+    setName: card.set_name,
+    collectorNumber: card.collector_number,
+    rarity: card.rarity,
+    foil: 'normal',
+    quantity: 1,
+    price: parseFloat(card.prices?.usd || '0'),
+    currency: 'USD',
+    scryfallPrices: card.prices,
+    imageUrl: card.image_uris?.normal || card.card_faces?.[0]?.image_uris?.normal,
+    types: card.type_line,
+    type_line: card.type_line,
+    colors: card.colors || [],
+    keywords: card.keywords || [],
+    manaCost: card.mana_cost || '',
+    cmc: card.cmc || 0
+  };
+}
+
 async function loadWishlist() {
   await loadPersistedWishlist();
   await loadPasswordHash();
@@ -127,11 +122,9 @@ async function loadWishlist() {
   
   collection = [...wishlistCards];
   filteredCollection = [...wishlistCards];
-  
   applyFilters();
 }
 
-// Render wishlist
 function renderWishlist() {
   const container = document.getElementById('wishlist-collection');
   const emptyState = document.getElementById('empty-state');
@@ -146,19 +139,11 @@ function renderWishlist() {
   container.style.display = 'grid';
   emptyState.style.display = 'none';
   
-  const nameCounts = {};
-  filteredCollection.forEach(c => {
-    const key = c.oracle_id || c.name;
-    nameCounts[key] = (nameCounts[key] || 0) + 1;
-  });
-  
   container.innerHTML = filteredCollection.map(card => {
-    let html = renderCardHTML(card, nameCounts);
-    
+    let html = renderCardHTML(card, {});
     if (!isLocked) {
       html += `<button class="remove-card" data-id="${card.scryfallId}">✕</button>`;
     }
-    
     return html;
   }).join('');
   
@@ -173,7 +158,7 @@ function renderWishlist() {
   setupCardInteractions(container);
   
   if (!isLocked) {
-    document.querySelectorAll('.remove-card').forEach(btn => {
+    container.querySelectorAll('.remove-card').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         removeFromWishlist(btn.dataset.id);
@@ -184,48 +169,35 @@ function renderWishlist() {
   updateStats();
 }
 
-// Add to wishlist
 function addToWishlist(card) {
   if (isLocked) {
     showNotification('🔒 Unlock wishlist to add cards');
     return;
   }
-  
   if (wishlistCards.some(c => c.scryfallId === card.scryfallId)) {
     showNotification('Card already in wishlist');
     return;
   }
-  
   wishlistCards.push(card);
-  const ids = wishlistCards.map(c => c.scryfallId);
-  localStorage.setItem('wishlist', JSON.stringify(ids));
-  
+  localStorage.setItem('wishlist', JSON.stringify(wishlistCards.map(c => c.scryfallId)));
   collection = [...wishlistCards];
   applyFilters();
   showNotification(`✓ Added ${card.name}`);
 }
 
-// Remove from wishlist
 function removeFromWishlist(scryfallId) {
   wishlistCards = wishlistCards.filter(c => c.scryfallId !== scryfallId);
-  const ids = wishlistCards.map(c => c.scryfallId);
-  localStorage.setItem('wishlist', JSON.stringify(ids));
-  
+  localStorage.setItem('wishlist', JSON.stringify(wishlistCards.map(c => c.scryfallId)));
   collection = [...wishlistCards];
   applyFilters();
   showNotification('✓ Card removed');
 }
 
-// Download wishlist
 function downloadWishlist() {
   const data = {
-    cards: wishlistCards.map(c => ({
-      scryfallId: c.scryfallId,
-      addedAt: new Date().toISOString()
-    })),
+    cards: wishlistCards.map(c => ({ scryfallId: c.scryfallId, addedAt: new Date().toISOString() })),
     lastModified: new Date().toISOString()
   };
-  
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -233,11 +205,9 @@ function downloadWishlist() {
   a.download = 'wishlist.json';
   a.click();
   URL.revokeObjectURL(url);
-  
   showNotification('💾 Wishlist downloaded');
 }
 
-// Clear wishlist
 function clearWishlist() {
   if (confirm('Clear all cards from wishlist?')) {
     wishlistCards = [];
@@ -249,12 +219,13 @@ function clearWishlist() {
   }
 }
 
-// Search Scryfall
-async function searchScryfall(query) {
+// === SEARCH ===
+
+async function searchScryfall(query, sortBy = 'usd') {
   if (!query) return [];
-  
+  const dir = sortBy === 'name' ? 'asc' : 'desc';
   try {
-    const response = await fetch(`https://api.scryfall.com/cards/search?q=${encodeURIComponent(query)}&unique=prints&order=usd&dir=desc`);
+    const response = await fetch(`https://api.scryfall.com/cards/search?q=${encodeURIComponent(query)}&unique=prints&order=${sortBy}&dir=${dir}`);
     if (response.ok) {
       const data = await response.json();
       return data.data || [];
@@ -265,177 +236,105 @@ async function searchScryfall(query) {
   return [];
 }
 
-// Show search modal
 function showSearchModal() {
   const modal = document.getElementById('search-modal');
   const input = document.getElementById('scryfall-search');
+  const sortSelect = document.getElementById('search-sort');
   const results = document.getElementById('search-results');
   
   modal.classList.remove('hidden');
   input.value = '';
-  results.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 20px;">Search for any Magic card...</p>';
+  sortSelect.value = 'usd';
+  results.innerHTML = '<p style="text-align:center;color:var(--text-secondary);padding:40px;">Search for any Magic card...</p>';
   input.focus();
   
   let timeout;
-  input.oninput = () => {
+  const doSearch = () => {
     clearTimeout(timeout);
     timeout = setTimeout(async () => {
       const query = input.value.trim();
       if (!query) {
-        results.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 20px;">Search for any Magic card...</p>';
+        results.innerHTML = '<p style="text-align:center;color:var(--text-secondary);padding:40px;">Search for any Magic card...</p>';
         return;
       }
       
-      results.innerHTML = '<p style="text-align: center; padding: 20px;">Searching...</p>';
-      const cards = await searchScryfall(query);
+      results.innerHTML = '<p style="text-align:center;padding:40px;">Searching...</p>';
+      const cards = await searchScryfall(query, sortSelect.value);
       
       if (cards.length === 0) {
-        results.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 20px;">No results found</p>';
+        results.innerHTML = '<p style="text-align:center;color:var(--text-secondary);padding:40px;">No results found</p>';
         return;
       }
       
-      // Group by card name
+      // Group by name
       const grouped = {};
-      cards.forEach(card => {
-        const name = card.name;
-        if (!grouped[name]) grouped[name] = [];
-        grouped[name].push(card);
+      cards.forEach(c => {
+        if (!grouped[c.name]) grouped[c.name] = [];
+        grouped[c.name].push(c);
       });
       
-      results.innerHTML = Object.entries(grouped).slice(0, 10).map(([name, versions]) => {
-        return `
-          <div class="search-group">
-            <div class="search-group-name">${name} <span style="color: var(--text-secondary);">(${versions.length} version${versions.length > 1 ? 's' : ''})</span></div>
-            <div class="version-cards">
-              ${versions.map(card => {
-                const usdPrice = card.prices?.usd || card.prices?.usd_foil || card.prices?.usd_etched || '0';
-                const foilStatus = card.prices?.usd ? 'normal' : (card.prices?.usd_foil ? 'foil' : (card.prices?.usd_etched ? 'etched' : 'normal'));
-                const inWishlist = wishlistCards.some(c => c.scryfallId === card.id);
-                const cardData = {
-                  name: card.name,
-                  scryfallId: card.id,
-                  setCode: card.set.toUpperCase(),
-                  setName: card.set_name,
-                  collectorNumber: card.collector_number,
-                  rarity: card.rarity,
-                  foil: foilStatus,
-                  quantity: 1,
-                  price: parseFloat(card.prices?.usd || '0'),
-                  currency: 'USD',
-                  scryfallPrices: card.prices,
-                  types: card.type_line,
-                  colors: card.colors || [],
-                  keywords: card.keywords || [],
-                  manaCost: card.mana_cost || '',
-                  cmc: card.cmc || 0
-                };
-                
-                const foilClass = foilStatus !== 'normal' ? foilStatus : '';
-                const setIcon = `https://svgs.scryfall.io/sets/${card.set.toLowerCase()}.svg`;
-                
-                return `
-                  <div class="version-card ${inWishlist ? 'in-wishlist' : ''}" data-card='${JSON.stringify(cardData)}'>
-                    <div class="card ${foilClass}" data-scryfall-id="${card.id}">
-                      <div class="card-image-wrapper">
-                        <div class="card-image-inner">
-                          <img src="${card.image_uris?.normal || card.card_faces?.[0]?.image_uris?.normal}" 
-                               alt="${card.name}" 
-                               class="card-image">
-                          <img src="images/back.png" alt="Card back" class="card-back">
-                        </div>
-                      </div>
-                      <div class="card-header">
-                        <div class="card-name">${card.name}</div>
-                        <div class="card-value">$${usdPrice}</div>
-                      </div>
-                      <div class="card-set"><img src="${setIcon}" class="set-icon" alt="${card.set.toUpperCase()}">${card.set_name}</div>
-                      <div class="card-details">
-                        <span class="badge rarity-${card.rarity}">${card.rarity}</span>
-                        ${foilStatus !== 'normal' ? `<span class="badge foil-${foilStatus}">${foilStatus}</span>` : ''}
-                      </div>
-                    </div>
-                    ${inWishlist ? '<div class="version-added">✓ In Wishlist</div>' : ''}
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          </div>
-        `;
-      }).join('');
+      results.innerHTML = Object.entries(grouped).slice(0, 10).map(([name, versions]) => `
+        <div class="search-group">
+          <div class="search-group-name">${name} <span style="color:var(--text-secondary);">(${versions.length} printing${versions.length > 1 ? 's' : ''})</span></div>
+          <div class="collection">${versions.map(card => {
+            const inWishlist = wishlistCards.some(c => c.scryfallId === card.id);
+            const cardObj = scryfallToCard(card);
+            const html = renderCardHTML(cardObj, {});
+            return `<div class="search-card-wrapper" data-card='${JSON.stringify(cardObj)}'>
+              ${html}
+              ${inWishlist 
+                ? '<div class="version-added">✓ In Wishlist</div>' 
+                : '<button class="btn btn-small add-to-wishlist-btn" style="width:100%;margin-top:5px;">+ Add to Wishlist</button>'}
+            </div>`;
+          }).join('')}</div>
+        </div>
+      `).join('');
       
-      // Setup card interactions
-      const container = results;
-      container.querySelectorAll('.card-image-wrapper').forEach(wrapper => {
-        const inner = wrapper.querySelector('.card-image-inner');
-        let isDragging = false;
-        
-        const startDrag = e => { isDragging = true; e.preventDefault(); };
-        const endDrag = () => {
-          if (isDragging) {
-            isDragging = false;
-            inner.style.transform = '';
-            inner.style.boxShadow = '';
-            inner.style.setProperty('--shimmer-x', '50%');
-            inner.style.setProperty('--shimmer-y', '50%');
-          }
-        };
-        const onMove = e => {
-          if (!isDragging) return;
-          const rect = wrapper.getBoundingClientRect();
-          const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-          const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-          const x = (clientX - rect.left) / rect.width - 0.5;
-          const y = (clientY - rect.top) / rect.height - 0.5;
-          inner.style.transform = `rotateX(${-y * 60}deg) rotateY(${x * 120}deg)`;
-          inner.style.boxShadow = `${x * -20}px ${10 + y * -10}px 20px rgba(0,0,0,0.5)`;
-          inner.style.setProperty('--shimmer-x', `${50 + x * 100}%`);
-          inner.style.setProperty('--shimmer-y', `${50 + y * 100}%`);
-        };
-        
-        wrapper.addEventListener('mousedown', startDrag);
-        wrapper.addEventListener('touchstart', startDrag);
-        document.addEventListener('mouseup', endDrag);
-        document.addEventListener('touchend', endDrag);
-        document.addEventListener('mousemove', onMove);
-        document.addEventListener('touchmove', onMove);
+      // Load images
+      results.querySelectorAll('.card-image-wrapper').forEach(wrapper => {
+        const card = wrapper.closest('.card');
+        const img = wrapper.querySelector('.card-image');
+        const id = card.dataset.scryfallId;
+        fetchCardImage(id).then(url => { if (url) img.src = url; });
       });
       
-      // Add click handlers
-      document.querySelectorAll('.version-card:not(.in-wishlist)').forEach(el => {
-        el.addEventListener('click', () => {
-          const card = JSON.parse(el.dataset.card);
+      // Setup drag interactions
+      setupCardInteractions(results);
+      
+      // Add button handlers
+      results.querySelectorAll('.add-to-wishlist-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          const wrapper = btn.closest('.search-card-wrapper');
+          const card = JSON.parse(wrapper.dataset.card);
           addToWishlist(card);
-          el.classList.add('in-wishlist');
-          el.insertAdjacentHTML('beforeend', '<div class="version-added">✓ Added</div>');
+          btn.outerHTML = '<div class="version-added">✓ Added</div>';
         });
       });
     }, 300);
   };
   
-  document.getElementById('search-close').onclick = () => {
-    modal.classList.add('hidden');
-  };
+  input.oninput = doSearch;
+  sortSelect.onchange = doSearch;
   
-  modal.onclick = (e) => {
-    if (e.target === modal) modal.classList.add('hidden');
-  };
+  document.getElementById('search-close').onclick = () => modal.classList.add('hidden');
+  modal.onclick = (e) => { if (e.target === modal) modal.classList.add('hidden'); };
 }
 
-// Password verification
+// === PASSWORD ===
+
 async function hashPassword(password) {
   const encoder = new TextEncoder();
   const data = encoder.encode(password);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map(b => b.toString(16).padStart(2, '0')).join('');
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 async function verifyPassword(password) {
-  const hash = await hashPassword(password);
-  return hash === passwordHash;
+  return (await hashPassword(password)) === passwordHash;
 }
 
-// Show password modal
 function showPasswordModal() {
   const modal = document.getElementById('password-modal');
   const input = document.getElementById('password-input');
@@ -447,10 +346,8 @@ function showPasswordModal() {
   input.focus();
   
   const submit = async () => {
-    const password = input.value;
-    if (!password) return;
-    
-    if (await verifyPassword(password)) {
+    if (!input.value) return;
+    if (await verifyPassword(input.value)) {
       isLocked = false;
       window.isLocked = false;
       localStorage.setItem('wishlistLocked', '0');
@@ -465,32 +362,23 @@ function showPasswordModal() {
   };
   
   document.getElementById('password-submit').onclick = submit;
-  input.onkeypress = (e) => {
-    if (e.key === 'Enter') submit();
-  };
-  document.getElementById('password-cancel').onclick = () => {
-    modal.classList.add('hidden');
-  };
-  modal.onclick = (e) => {
-    if (e.target === modal) modal.classList.add('hidden');
-  };
+  input.onkeypress = (e) => { if (e.key === 'Enter') submit(); };
+  document.getElementById('password-cancel').onclick = () => modal.classList.add('hidden');
+  modal.onclick = (e) => { if (e.target === modal) modal.classList.add('hidden'); };
 }
 
-// Toggle lock
-async function toggleLock() {
+function toggleLock() {
   if (isLocked) {
     showPasswordModal();
   } else {
     isLocked = true;
     window.isLocked = true;
     localStorage.setItem('wishlistLocked', '1');
-    updateLockUI();
     showNotification('🔒 Wishlist locked');
     location.reload();
   }
 }
 
-// Update lock UI
 function updateLockUI() {
   const btn = document.getElementById('toggle-lock');
   const searchBtn = document.getElementById('search-cards');
@@ -510,62 +398,75 @@ function updateLockUI() {
   }
 }
 
-// Update stats
 function updateStats() {
   const count = filteredCollection.length;
   const value = filteredCollection.reduce((sum, c) => sum + getCardPrice(c) * c.quantity, 0);
-  
   document.getElementById('total-cards').textContent = count;
   document.getElementById('total-value').textContent = formatPrice(value, 'USD');
 }
 
-// Setup event listeners
+function onFiltersApplied() {
+  renderWishlist();
+}
+
 function setupEventListeners() {
   // Menu toggle
   const menuToggle = document.getElementById('menu-toggle');
   const menuDropdown = document.getElementById('menu-dropdown');
   const menuOverlay = document.getElementById('menu-overlay');
-  
   if (menuToggle) {
     menuToggle.addEventListener('click', () => {
       menuDropdown.classList.toggle('active');
       menuOverlay.classList.toggle('active');
     });
-    
     menuOverlay.addEventListener('click', () => {
       menuDropdown.classList.remove('active');
       menuOverlay.classList.remove('active');
     });
   }
   
+  // Filters toggle
+  document.getElementById('filters-toggle')?.addEventListener('click', function() {
+    this.classList.toggle('expanded');
+    document.getElementById('filters-content').classList.toggle('collapsed');
+    const icon = this.querySelector('.toggle-icon');
+    if (icon) icon.textContent = this.classList.contains('expanded') ? '▼' : '▶';
+  });
+  
   document.getElementById('toggle-lock').addEventListener('click', toggleLock);
   document.getElementById('search-cards').addEventListener('click', showSearchModal);
   document.getElementById('download-wishlist').addEventListener('click', downloadWishlist);
   document.getElementById('clear-wishlist').addEventListener('click', clearWishlist);
   
+  // Filter listeners
   document.getElementById('search').addEventListener('input', applyFilters);
-  document.getElementById('set-filter').addEventListener('input', applyFilters);
+  document.getElementById('set-filter')?.addEventListener('input', applyFilters);
   document.getElementById('rarity-filter').addEventListener('change', applyFilters);
+  document.getElementById('foil-filter')?.addEventListener('change', applyFilters);
   document.getElementById('type-filter').addEventListener('change', applyFilters);
   document.getElementById('color-filter').addEventListener('change', applyFilters);
+  document.getElementById('keyword-filter')?.addEventListener('change', applyFilters);
   document.getElementById('sort').addEventListener('change', applyFilters);
+  
   document.getElementById('clear-filters').addEventListener('click', () => {
     document.getElementById('search').value = '';
     document.getElementById('set-filter').value = '';
     document.getElementById('rarity-filter').value = '';
+    if (document.getElementById('foil-filter')) document.getElementById('foil-filter').value = '';
     document.getElementById('type-filter').value = '';
     document.getElementById('color-filter').value = '';
+    if (document.getElementById('keyword-filter')) document.getElementById('keyword-filter').value = '';
     document.getElementById('sort').value = 'price-desc';
     if (priceSlider) priceSlider.set([0, maxPriceValue]);
     applyFilters();
   });
   
-  // Setup price slider
+  // Price slider
   if (wishlistCards.length > 0) {
     maxPriceValue = Math.ceil(Math.max(...wishlistCards.map(c => getCardPrice(c))));
     if (maxPriceValue < 10) maxPriceValue = 10;
     
-    const slider = document.getElementById('price-slider');
+    const slider = document.getElementById('price-range');
     if (slider && !priceSlider) {
       priceSlider = noUiSlider.create(slider, {
         start: [0, maxPriceValue],
@@ -574,14 +475,26 @@ function setupEventListeners() {
         step: 0.01,
         format: { to: v => v.toFixed(2), from: v => parseFloat(v) }
       });
+      priceSlider.on('update', (values) => {
+        document.getElementById('price-min-val').textContent = values[0];
+        document.getElementById('price-max-val').textContent = values[1];
+      });
       priceSlider.on('change', applyFilters);
     }
   }
+  
+  // Populate keyword filter
+  const keywords = new Set();
+  wishlistCards.forEach(c => (c.keywords || []).forEach(k => keywords.add(k)));
+  const kwSelect = document.getElementById('keyword-filter');
+  if (kwSelect) {
+    [...keywords].sort().forEach(k => {
+      const opt = document.createElement('option');
+      opt.value = k;
+      opt.textContent = k;
+      kwSelect.appendChild(opt);
+    });
+  }
 }
 
-function onFiltersApplied() {
-  renderWishlist();
-}
-
-// Initialize on load
 document.addEventListener('DOMContentLoaded', initWishlist);

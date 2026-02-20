@@ -42,6 +42,74 @@
     </div>
   </header>
 
+  <div class="search-hero">
+    <div class="search-wrapper autocomplete-wrapper">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="search" placeholder="Search wishlist..." autocomplete="off">
+      <div id="search-autocomplete" class="autocomplete-list"></div>
+    </div>
+    <button type="button" id="clear-filters" class="clear-filters-btn">Clear Filters</button>
+  </div>
+
+  <div class="collapsible-section">
+    <button type="button" class="section-toggle" id="filters-toggle">🔍 Advanced Filters <span class="toggle-icon">▶</span></button>
+    <div id="filters-content" class="filters collapsed">
+      <div class="filter-group autocomplete-wrapper">
+        <input type="text" id="set-filter" placeholder="Filter by set..." autocomplete="off">
+        <div id="set-autocomplete" class="autocomplete-list"></div>
+      </div>
+      <div class="filter-group price-slider">
+        <label>Price: $<span id="price-min-val">0</span> - $<span id="price-max-val">∞</span></label>
+        <div id="price-range"></div>
+      </div>
+      <select id="rarity-filter">
+        <option value="">All Rarities</option>
+        <option value="common">Common</option>
+        <option value="uncommon">Uncommon</option>
+        <option value="rare">Rare</option>
+        <option value="mythic">Mythic</option>
+      </select>
+      <select id="foil-filter">
+        <option value="">All Finishes</option>
+        <option value="normal">Normal</option>
+        <option value="foil">Foil</option>
+        <option value="etched">Etched</option>
+      </select>
+      <select id="type-filter">
+        <option value="">All Types</option>
+        <option value="Creature">Creature</option>
+        <option value="Instant">Instant</option>
+        <option value="Sorcery">Sorcery</option>
+        <option value="Artifact">Artifact</option>
+        <option value="Enchantment">Enchantment</option>
+        <option value="Land">Land</option>
+        <option value="Planeswalker">Planeswalker</option>
+      </select>
+      <select id="color-filter">
+        <option value="">All Colors</option>
+        <option value="W">White</option>
+        <option value="U">Blue</option>
+        <option value="B">Black</option>
+        <option value="R">Red</option>
+        <option value="G">Green</option>
+        <option value="C">Colorless</option>
+        <option value="M">Multicolor</option>
+      </select>
+      <select id="keyword-filter">
+        <option value="">All Keywords</option>
+      </select>
+      <select id="sort">
+        <option value="price-desc">Price (High to Low)</option>
+        <option value="price-asc">Price (Low to High)</option>
+        <option value="name">Name</option>
+        <option value="rarity">Rarity</option>
+        <option value="set">Set</option>
+        <option value="cmc-asc">Mana Value (Low to High)</option>
+        <option value="cmc-desc">Mana Value (High to Low)</option>
+      </select>
+    </div>
+  </div>
+
   <div class="binder-actions">
     <button type="button" id="toggle-lock" class="btn">🔒 Unlock Wishlist</button>
     <button type="button" id="search-cards" class="btn" style="display: none;">🔍 Search Cards</button>
@@ -49,53 +117,7 @@
     <button type="button" id="clear-wishlist" class="btn btn-danger" style="display: none;">🗑️ Clear Wishlist</button>
   </div>
 
-  <div class="filters">
-    <input type="text" id="search" placeholder="Search cards...">
-    <input type="text" id="set-filter" placeholder="Filter by set...">
-    <select id="rarity-filter">
-      <option value="">All Rarities</option>
-      <option value="common">Common</option>
-      <option value="uncommon">Uncommon</option>
-      <option value="rare">Rare</option>
-      <option value="mythic">Mythic</option>
-    </select>
-    <select id="type-filter">
-      <option value="">All Types</option>
-      <option value="Creature">Creature</option>
-      <option value="Instant">Instant</option>
-      <option value="Sorcery">Sorcery</option>
-      <option value="Enchantment">Enchantment</option>
-      <option value="Artifact">Artifact</option>
-      <option value="Planeswalker">Planeswalker</option>
-      <option value="Land">Land</option>
-    </select>
-    <select id="color-filter">
-      <option value="">All Colors</option>
-      <option value="W">White</option>
-      <option value="U">Blue</option>
-      <option value="B">Black</option>
-      <option value="R">Red</option>
-      <option value="G">Green</option>
-      <option value="C">Colorless</option>
-      <option value="M">Multicolor</option>
-    </select>
-    <select id="sort">
-      <option value="price-desc">Price (High to Low)</option>
-      <option value="price-asc">Price (Low to High)</option>
-      <option value="name">Name (A-Z)</option>
-      <option value="rarity">Rarity</option>
-      <option value="set">Set</option>
-      <option value="cmc-asc">CMC (Low to High)</option>
-      <option value="cmc-desc">CMC (High to Low)</option>
-    </select>
-    <div class="price-slider-container">
-      <label>Price Range</label>
-      <div id="price-slider"></div>
-    </div>
-    <button type="button" id="clear-filters" class="btn btn-secondary">Clear Filters</button>
-  </div>
-
-  <div id="wishlist-collection" class="card-grid"></div>
+  <div id="wishlist-collection" class="collection"></div>
 
   <div id="empty-state" class="empty-state" style="display: none;">
     <h2>Your wishlist is empty</h2>
@@ -118,17 +140,27 @@
 
   <!-- Search Modal -->
   <div id="search-modal" class="modal hidden">
-    <div class="modal-content" style="max-width: 800px;">
+    <div class="modal-content" style="max-width: 1200px; max-height: 90vh; overflow-y: auto;">
       <h2>🔍 Search Scryfall</h2>
-      <input type="text" id="scryfall-search" placeholder="Search for cards..." style="width: 100%; margin-bottom: 15px;">
-      <div id="search-results" style="max-height: 400px; overflow-y: auto;"></div>
+      <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+        <div class="search-wrapper" style="flex: 1;">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="scryfall-search" placeholder="Search for any Magic card..." autocomplete="off">
+        </div>
+        <select id="search-sort" class="btn btn-secondary" style="padding: 10px 15px;">
+          <option value="usd">Price ↓</option>
+          <option value="set">Set</option>
+          <option value="name">Name</option>
+        </select>
+      </div>
+      <div id="search-results"></div>
       <div class="modal-actions">
         <button type="button" id="search-close" class="btn btn-secondary">Close</button>
       </div>
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/nouislider@15/dist/nouislider.min.js"></script>
   <script src="js/shared.js"></script>
   <script src="js/wishlist.js"></script>
 </body>
