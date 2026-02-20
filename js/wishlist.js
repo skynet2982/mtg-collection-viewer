@@ -45,9 +45,14 @@ async function loadPasswordHash() {
 async function fetchCardsFromScryfall(scryfallIds) {
   const cards = [];
   const batchSize = 75;
+  // Track which IDs are foil
+  const foilIds = new Set(scryfallIds.filter(id => id.endsWith('-foil')));
+  const cleanIds = scryfallIds.map(id => id.replace(/-foil$/, ''));
+  // Dedupe clean IDs
+  const uniqueClean = [...new Set(cleanIds)];
   
-  for (let i = 0; i < scryfallIds.length; i += batchSize) {
-    const batch = scryfallIds.slice(i, i + batchSize);
+  for (let i = 0; i < uniqueClean.length; i += batchSize) {
+    const batch = uniqueClean.slice(i, i + batchSize);
     try {
       const response = await fetch('https://api.scryfall.com/cards/collection', {
         method: 'POST',
@@ -58,11 +63,18 @@ async function fetchCardsFromScryfall(scryfallIds) {
       if (response.ok) {
         const data = await response.json();
         for (const card of data.data) {
-          cards.push(scryfallToCard(card));
+          // Add normal version if requested
+          if (scryfallIds.includes(card.id)) {
+            cards.push(scryfallToCard(card, 'normal'));
+          }
+          // Add foil version if requested
+          if (foilIds.has(card.id + '-foil')) {
+            cards.push(scryfallToCard(card, 'foil'));
+          }
         }
       }
       
-      if (i + batchSize < scryfallIds.length) {
+      if (i + batchSize < uniqueClean.length) {
         await new Promise(r => setTimeout(r, 100));
       }
     } catch (e) {
@@ -215,7 +227,7 @@ function renderWishlist() {
   container.querySelectorAll('.card-image-wrapper').forEach(wrapper => {
     const card = wrapper.closest('.card');
     const img = wrapper.querySelector('.card-image');
-    const id = card.dataset.scryfallId;
+    const id = card.dataset.scryfallId.replace(/-foil$/, '');
     fetchCardImage(id).then(url => { if (url) img.src = url; });
   });
   
