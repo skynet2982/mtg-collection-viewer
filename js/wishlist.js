@@ -413,7 +413,8 @@ function showSearchModal() {
   
   input.oninput = doSearch;
   sortSelect.onchange = doSearch;
-  setFilter.oninput = () => {
+  let cachedSets = null;
+  setFilter.oninput = async () => {
     const val = setFilter.value.trim().toLowerCase();
     const dropdown = document.getElementById('set-search-autocomplete');
     if (!val || val.length < 2) {
@@ -423,37 +424,41 @@ function showSearchModal() {
       return;
     }
     
-    fetch(`https://api.scryfall.com/sets`)
-      .then(r => r.json())
-      .then(data => {
-        const matches = (data.data || []).filter(s => 
-          s.name.toLowerCase().includes(val) || s.code.toLowerCase().includes(val)
-        ).slice(0, 8);
-        
-        if (matches.length === 0) {
-          dropdown.innerHTML = '';
-          dropdown.classList.remove('show');
-          return;
-        }
-        
-        dropdown.innerHTML = matches.map(s => 
-          `<div class="autocomplete-item" data-code="${s.code}">
-            <span>${s.name}</span>
-            <span style="color: var(--text-secondary); margin-left: 10px;">${s.code.toUpperCase()}</span>
-          </div>`
-        ).join('');
-        dropdown.classList.add('show');
-        
-        dropdown.querySelectorAll('.autocomplete-item').forEach(item => {
-          item.addEventListener('click', () => {
-            setFilter.value = item.dataset.code;
-            dropdown.innerHTML = '';
-            dropdown.classList.remove('show');
-            doSearch();
-          });
-        });
-      })
-      .catch(() => {});
+    if (!cachedSets) {
+      try {
+        const r = await fetch('https://api.scryfall.com/sets');
+        const data = await r.json();
+        cachedSets = (data.data || []).filter(s => s.set_type !== 'token' && s.set_type !== 'memorabilia');
+      } catch (e) { cachedSets = []; }
+    }
+    
+    const matches = cachedSets.filter(s => 
+      s.name.toLowerCase().includes(val) || s.code.toLowerCase().includes(val)
+    ).slice(0, 8);
+    
+    if (matches.length === 0) {
+      dropdown.innerHTML = '';
+      dropdown.classList.remove('show');
+      doSearch();
+      return;
+    }
+    
+    dropdown.innerHTML = matches.map(s => 
+      `<div class="autocomplete-item" data-code="${s.code}">
+        <span>${s.name}</span>
+        <span style="color: var(--text-secondary); margin-left: 10px;">${s.code.toUpperCase()}</span>
+      </div>`
+    ).join('');
+    dropdown.classList.add('show');
+    
+    dropdown.querySelectorAll('.autocomplete-item').forEach(item => {
+      item.addEventListener('click', () => {
+        setFilter.value = item.dataset.code;
+        dropdown.innerHTML = '';
+        dropdown.classList.remove('show');
+        doSearch();
+      });
+    });
     
     doSearch();
   };
