@@ -291,6 +291,28 @@ function downloadWishlist() {
   showNotification('💾 Wishlist downloaded');
 }
 
+function exportMoxfield() {
+  if (!wishlistCards.length) return showNotification('Wishlist is empty');
+  const lines = wishlistCards.map(c => {
+    const name = c.oracleName || c.name;
+    const foilSuffix = c.foil === 'foil' ? ' *F*' : '';
+    return `${c.quantity} ${name} (${c.setCode}) ${c.collectorNumber}${foilSuffix}`;
+  });
+  const text = lines.join('\n');
+  navigator.clipboard.writeText(text).then(() => {
+    showNotification(`📋 Copied ${wishlistCards.length} cards to clipboard`);
+  }).catch(() => {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    showNotification(`📋 Copied ${wishlistCards.length} cards to clipboard`);
+  });
+}
+
 function clearWishlist() {
   if (confirm('Clear all cards from wishlist?')) {
     wishlistCards = [];
@@ -594,6 +616,7 @@ function setupEventListeners() {
   document.getElementById('toggle-lock').addEventListener('click', toggleLock);
   document.getElementById('search-cards').addEventListener('click', showSearchModal);
   document.getElementById('download-wishlist').addEventListener('click', downloadWishlist);
+  document.getElementById('export-moxfield').addEventListener('click', exportMoxfield);
   document.getElementById('clear-wishlist').addEventListener('click', clearWishlist);
   
   // Sync banner buttons
