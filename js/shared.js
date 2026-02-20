@@ -393,6 +393,8 @@ function getCardPrice(card) {
     if (card.foil === 'etched' && p.usd_etched) return parseFloat(p.usd_etched);
     if (card.foil === 'foil' && p.usd_foil) return parseFloat(p.usd_foil);
     if (p.usd) return parseFloat(p.usd);
+    // Fallback through all price fields
+    return parseFloat(p.usd_foil || p.usd_etched || '0');
   }
   return card.price;
 }

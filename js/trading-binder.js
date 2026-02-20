@@ -189,7 +189,6 @@ async function fetchCardsFromScryfall(scryfallIds) {
       if (response.ok) {
         const data = await response.json();
         for (const card of data.data) {
-          const usdPrice = card.prices?.usd || card.prices?.usd_foil || card.prices?.usd_etched || '0';
           cards.push({
             name: card.name,
             scryfallId: card.id,
@@ -199,7 +198,7 @@ async function fetchCardsFromScryfall(scryfallIds) {
             rarity: card.rarity,
             foil: 'normal',
             quantity: 1,
-            price: parseFloat(card.prices?.usd || '0'),
+            price: parseFloat(card.prices?.usd || card.prices?.usd_foil || card.prices?.usd_etched || '0'),
             currency: 'USD',
             scryfallPrices: card.prices,
             imageUrl: card.image_uris?.normal || card.card_faces?.[0]?.image_uris?.normal,

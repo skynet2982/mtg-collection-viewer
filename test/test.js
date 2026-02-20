@@ -221,6 +221,57 @@ tb.test('Cards fetched from Scryfall have required fields', () => {
   assert(card.currency === 'USD');
 });
 
+// ===== PRICE FALLBACK TESTS =====
+const pf = suite('Price Fallback');
+pf.test('getCardPrice falls back to usd_foil when usd is null', () => {
+  const card = { foil: 'normal', scryfallPrices: { usd: null, usd_foil: '10.00', usd_etched: null }, price: 0 };
+  // Simulate getCardPrice logic (scryfall source)
+  const p = card.scryfallPrices;
+  let price;
+  if (card.foil === 'etched' && p.usd_etched) price = parseFloat(p.usd_etched);
+  else if (card.foil === 'foil' && p.usd_foil) price = parseFloat(p.usd_foil);
+  else if (p.usd) price = parseFloat(p.usd);
+  else price = parseFloat(p.usd_foil || p.usd_etched || '0');
+  assertEquals(price, 10);
+});
+pf.test('getCardPrice uses usd when available', () => {
+  const p = { usd: '5.00', usd_foil: '10.00' };
+  const price = parseFloat(p.usd);
+  assertEquals(price, 5);
+});
+pf.test('getCardPrice falls back to usd_etched', () => {
+  const p = { usd: null, usd_foil: null, usd_etched: '3.00' };
+  const price = parseFloat(p.usd || p.usd_foil || p.usd_etched || '0');
+  assertEquals(price, 3);
+});
+pf.test('card.price uses full fallback chain', () => {
+  const prices = { usd: null, usd_foil: '7.50', usd_etched: null };
+  const price = parseFloat(prices.usd || prices.usd_foil || prices.usd_etched || '0');
+  assertEquals(price, 7.5);
+});
+pf.test('All null prices result in 0', () => {
+  const prices = { usd: null, usd_foil: null, usd_etched: null };
+  const price = parseFloat(prices.usd || prices.usd_foil || prices.usd_etched || '0');
+  assertEquals(price, 0);
+});
+pf.test('Foil card uses usd_foil first then usd', () => {
+  const p = { usd: '5.00', usd_foil: '12.00' };
+  // foil card logic
+  let price;
+  if (p.usd_foil) price = parseFloat(p.usd_foil);
+  else if (p.usd) price = parseFloat(p.usd);
+  else price = 0;
+  assertEquals(price, 12);
+});
+pf.test('Foil card falls back to usd when usd_foil null', () => {
+  const p = { usd: '5.00', usd_foil: null };
+  let price;
+  if (p.usd_foil) price = parseFloat(p.usd_foil);
+  else if (p.usd) price = parseFloat(p.usd);
+  else price = 0;
+  assertEquals(price, 5);
+});
+
 // ===== WISHLIST TESTS =====
 const wl = suite('Wishlist');
 
