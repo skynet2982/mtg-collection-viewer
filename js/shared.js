@@ -249,31 +249,31 @@ function setupCardInteractions(container) {
 }
 
 function showContextMenu(x, y, scryfallId) {
-  // Check if binder is locked from localStorage
+  // Check lock states
   const binderLocked = localStorage.getItem('binderLocked') === '1';
-  if (binderLocked) return; // Don't show context menu at all when locked
+  const wishlistLocked = localStorage.getItem('wishlistLocked') === '1';
+  if (binderLocked && wishlistLocked) return;
   
-  // Remove existing menu
   document.querySelectorAll('.context-menu').forEach(m => m.remove());
   
   const menu = document.createElement('div');
   menu.className = 'context-menu';
   menu.style.left = `${x}px`;
   menu.style.top = `${y}px`;
-  menu.innerHTML = `
-    <div class="context-menu-item" data-action="add-to-binder">
-      📖 Add to Trading Binder
-    </div>
-  `;
+  
+  let items = '';
+  if (!binderLocked) items += '<div class="context-menu-item" data-action="add-to-binder">📖 Add to Trading Binder</div>';
+  if (!wishlistLocked) items += '<div class="context-menu-item" data-action="add-to-wishlist">💫 Add to Wishlist</div>';
+  menu.innerHTML = items;
   
   document.body.appendChild(menu);
   
-  menu.querySelector('[data-action="add-to-binder"]').addEventListener('click', () => {
-    addToTradingBinder(scryfallId);
-    menu.remove();
-  });
+  const binderBtn = menu.querySelector('[data-action="add-to-binder"]');
+  if (binderBtn) binderBtn.addEventListener('click', () => { addToTradingBinder(scryfallId); menu.remove(); });
   
-  // Close on click outside
+  const wishlistBtn = menu.querySelector('[data-action="add-to-wishlist"]');
+  if (wishlistBtn) wishlistBtn.addEventListener('click', () => { addToWishlist(scryfallId); menu.remove(); });
+  
   setTimeout(() => {
     document.addEventListener('click', () => menu.remove(), { once: true });
   }, 0);
@@ -305,6 +305,27 @@ function addToTradingBinder(scryfallId) {
   localStorage.setItem('tradingBinder', JSON.stringify(ids));
   console.log('Added to binder:', scryfallId, 'Total cards:', ids.length);
   showNotification('✓ Added to trading binder');
+}
+
+function addToWishlist(scryfallId) {
+  const wishlistLocked = localStorage.getItem('wishlistLocked') === '1';
+  if (wishlistLocked) {
+    showNotification('🔒 Wishlist is locked. Cannot add cards.');
+    return;
+  }
+  
+  const stored = localStorage.getItem('wishlist');
+  let ids = [];
+  try { ids = stored ? JSON.parse(stored) : []; } catch (e) { ids = []; }
+  
+  if (ids.includes(scryfallId)) {
+    showNotification('Card already in wishlist');
+    return;
+  }
+  
+  ids.push(scryfallId);
+  localStorage.setItem('wishlist', JSON.stringify(ids));
+  showNotification('✓ Added to wishlist');
 }
 
 function showNotification(message) {

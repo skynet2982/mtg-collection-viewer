@@ -81,6 +81,7 @@
       </div>
       
       <button type="button" id="convert-deck" class="convert-btn">Convert to Owned Versions</button>
+      <button type="button" id="change-missing-versions" class="convert-btn" style="margin-left:8px;">Change Missing Card Versions</button>
       
       <div class="results-columns">
         <div class="results-column owned">
@@ -121,12 +122,43 @@
       localStorage.setItem('mtg-theme', themeSelect.value);
     });
 
-    let collectionNames = new Map(); // name -> { scryfallId, type_line }
-    let collectionCards = new Map(); // name -> array of card versions
+    let collectionNames = new Map();
+    let collectionCards = new Map();
     let currentDeckList = [];
     let currentOwnedCards = [];
     let currentMissingCards = [];
     let db;
+
+    function showNotification(message) {
+      const n = document.createElement('div');
+      n.className = 'notification';
+      n.textContent = message;
+      document.body.appendChild(n);
+      setTimeout(() => { n.style.opacity = '0'; setTimeout(() => n.remove(), 300); }, 2000);
+    }
+
+    function addToWishlist(scryfallId) {
+      if (localStorage.getItem('wishlistLocked') === '1') { showNotification('🔒 Wishlist is locked'); return; }
+      let ids = []; try { ids = JSON.parse(localStorage.getItem('wishlist') || '[]'); } catch(e) {}
+      if (ids.includes(scryfallId)) { showNotification('Card already in wishlist'); return; }
+      ids.push(scryfallId);
+      localStorage.setItem('wishlist', JSON.stringify(ids));
+      showNotification('✓ Added to wishlist');
+    }
+
+    function showContextMenu(x, y, scryfallId) {
+      const wishlistLocked = localStorage.getItem('wishlistLocked') === '1';
+      if (wishlistLocked) return;
+      document.querySelectorAll('.context-menu').forEach(m => m.remove());
+      const menu = document.createElement('div');
+      menu.className = 'context-menu';
+      menu.style.left = `${x}px`;
+      menu.style.top = `${y}px`;
+      menu.innerHTML = '<div class="context-menu-item" data-action="add-to-wishlist">💫 Add to Wishlist</div>';
+      document.body.appendChild(menu);
+      menu.querySelector('[data-action="add-to-wishlist"]').addEventListener('click', () => { addToWishlist(scryfallId); menu.remove(); });
+      setTimeout(() => document.addEventListener('click', () => menu.remove(), { once: true }), 0);
+    }
 
     // IndexedDB for cached card data
     const dbPromise = new Promise((resolve, reject) => {
@@ -642,6 +674,111 @@
       });
       
       modal.querySelector('.close').addEventListener('click', () => modal.remove());
+    }
+
+    document.getElementById('change-missing-versions').addEventListener('click', async () => {
+      if (currentMissingCards.length === 0) {
+        showNotification('No missing cards to change versions for');
+        return;
+      }
+      
+      const btn = document.getElementById('change-missing-versions');
+      btn.textContent = 'Loading versions...';
+      btn.disabled = true;
+      
+      try {
+        const cardsWithVersions = [];
+        for (const card of currentMissingCards) {
+          try {
+            const resp = await fetch(`https://api.scryfall.com/cards/search?q=!"${encodeURIComponent(card.name)}"&unique=prints&order=usd&dir=desc`);
+            if (resp.ok) {
+              const data = await resp.json();
+              const versions = [];
+              for (const c of data.data) {
+                if (c.nonfoil) versions.push({ scryfallId: c.id, setCode: c.set.toUpperCase(), setName: c.set_name, collectorNumber: c.collector_number, foil: 'normal', price: parseFloat(c.prices?.usd || '0'), imageUrl: c.image_uris?.normal || c.card_faces?.[0]?.image_uris?.normal });
+                if (c.foil) versions.push({ scryfallId: c.id + '-foil', setCode: c.set.toUpperCase(), setName: c.set_name, collectorNumber: c.collector_number, foil: 'foil', price: parseFloat(c.prices?.usd_foil || '0'), imageUrl: c.image_uris?.normal || c.card_faces?.[0]?.image_uris?.normal });
+              }
+              if (versions.length > 0) cardsWithVersions.push({ name: card.name, quantity: card.quantity, versions });
+            }
+            await new Promise(r => setTimeout(r, 100));
+          } catch (e) { console.error('Error fetching versions for', card.name, e); }
+        }
+        
+        if (cardsWithVersions.length > 0) showMissingVersionSelector(cardsWithVersions);
+        else showNotification('Could not find versions for missing cards');
+      } finally {
+        btn.textContent = 'Change Missing Card Versions';
+        btn.disabled = false;
+      }
+    });
+
+    function showMissingVersionSelector(cardsWithVersions) {
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay';
+      
+      modal.innerHTML = `
+        <div class="version-modal" style="max-width:900px;">
+          <h2>Select Versions for Missing Cards</h2>
+          <p>Pick the version you want for each missing card. Right-click to add to wishlist.</p>
+          <div class="version-list">
+            ${cardsWithVersions.map(card => `
+              <div class="version-group">
+                <div class="version-card-name">${card.quantity}x ${card.name.charAt(0).toUpperCase() + card.name.slice(1)}</div>
+                <div class="version-cards">
+                  ${card.versions.map((v, i) => `
+                    <div class="version-card ${i === 0 ? 'selected' : ''} ${v.foil === 'foil' ? 'foil' : ''}" 
+                         data-card="${card.name}" data-version="${v.scryfallId}" data-foil="${v.foil}">
+                      <div class="version-card-inner">
+                        <img src="${v.imageUrl || 'images/back.png'}" alt="${card.name}" class="version-card-front" onerror="this.src='images/back.png'">
+                        <img src="images/back.png" alt="Card back" class="version-card-back">
+                      </div>
+                      <div class="version-info">
+                        <div class="version-set">${v.setName}</div>
+                        <div class="version-code">${v.setCode} #${v.collectorNumber}${v.foil === 'foil' ? ' ✨Foil' : ''}</div>
+                        <div class="version-price">$${v.price.toFixed(2)}</div>
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+          <div class="modal-actions">
+            <button class="modal-btn confirm">Done</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      
+      // Click to select, 3D tilt, right-click for wishlist
+      modal.querySelectorAll('.version-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const cardName = card.dataset.card;
+          modal.querySelectorAll(`.version-card[data-card="${CSS.escape(cardName)}"]`).forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+        });
+        
+        const inner = card.querySelector('.version-card-inner');
+        let isDragging = false;
+        card.addEventListener('mousedown', e => { if (e.button === 0) { isDragging = true; e.preventDefault(); } });
+        document.addEventListener('mouseup', () => { if (isDragging) { isDragging = false; inner.style.transform = ''; inner.style.setProperty('--shimmer-x', '50%'); inner.style.setProperty('--shimmer-y', '50%'); } });
+        card.addEventListener('mousemove', e => {
+          if (!isDragging) return;
+          const rect = card.getBoundingClientRect();
+          const x = (e.clientX - rect.left) / rect.width - 0.5;
+          const y = (e.clientY - rect.top) / rect.height - 0.5;
+          inner.style.transform = `rotateX(${-y * 15}deg) rotateY(${x * 15}deg)`;
+          inner.style.setProperty('--shimmer-x', `${50 + x * 100}%`);
+          inner.style.setProperty('--shimmer-y', `${50 + y * 100}%`);
+        });
+        
+        card.addEventListener('contextmenu', e => {
+          e.preventDefault();
+          showContextMenu(e.clientX, e.clientY, card.dataset.version);
+        });
+      });
+      
+      modal.querySelector('.confirm').addEventListener('click', () => modal.remove());
     }
 
     loadCollection();
