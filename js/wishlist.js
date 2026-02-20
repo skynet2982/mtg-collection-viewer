@@ -206,6 +206,9 @@ function renderWishlist() {
   
   container.innerHTML = filteredCollection.map(card => {
     let html = renderCardHTML(card, {});
+    // Fix detail link: strip -foil suffix and open in new tab
+    const realId = card.scryfallId.replace(/-foil$/, '');
+    html = html.replace(`href="detail.html?id=${card.scryfallId}"`, `href="detail.html?id=${realId}" target="_blank"`);
     
     if (!isLocked) {
       const state = getCardState(card.scryfallId);
