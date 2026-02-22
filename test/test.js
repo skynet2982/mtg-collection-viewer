@@ -524,12 +524,13 @@ const filters = suite('Advanced Filters');
 
 // Mock collection data for filter tests
 const mockCollection = [
-  { name: 'Lightning Bolt', type_line: 'Instant', colors: ['R'], keywords: [], foil: 'normal', rarity: 'common', cmc: 1, setName: 'Alpha', price: 5 },
-  { name: 'Counterspell', type_line: 'Instant', colors: ['U'], keywords: [], foil: 'foil', rarity: 'uncommon', cmc: 2, setName: 'Beta', price: 10 },
-  { name: 'Llanowar Elves', type_line: 'Creature — Elf Druid', colors: ['G'], keywords: [], foil: 'normal', rarity: 'common', cmc: 1, setName: 'Alpha', price: 2 },
-  { name: 'Serra Angel', type_line: 'Creature — Angel', colors: ['W'], keywords: ['Flying', 'Vigilance'], foil: 'etched', rarity: 'rare', cmc: 5, setName: 'Beta', price: 15 },
-  { name: 'Black Lotus', type_line: 'Artifact', colors: [], keywords: [], foil: 'normal', rarity: 'mythic', cmc: 0, setName: 'Alpha', price: 10000 },
-  { name: 'Forest', type_line: 'Basic Land — Forest', colors: [], keywords: [], foil: 'normal', rarity: 'common', cmc: 0, setName: 'Alpha', price: 0.1 }
+  { name: 'Lightning Bolt', type_line: 'Instant', colors: ['R'], color_identity: ['R'], keywords: [], foil: 'normal', rarity: 'common', cmc: 1, setName: 'Alpha', price: 5 },
+  { name: 'Counterspell', type_line: 'Instant', colors: ['U'], color_identity: ['U'], keywords: [], foil: 'foil', rarity: 'uncommon', cmc: 2, setName: 'Beta', price: 10 },
+  { name: 'Llanowar Elves', type_line: 'Creature — Elf Druid', colors: ['G'], color_identity: ['G'], keywords: [], foil: 'normal', rarity: 'common', cmc: 1, setName: 'Alpha', price: 2 },
+  { name: 'Serra Angel', type_line: 'Creature — Angel', colors: ['W'], color_identity: ['W'], keywords: ['Flying', 'Vigilance'], foil: 'etched', rarity: 'rare', cmc: 5, setName: 'Beta', price: 15 },
+  { name: 'Black Lotus', type_line: 'Artifact', colors: [], color_identity: [], keywords: [], foil: 'normal', rarity: 'mythic', cmc: 0, setName: 'Alpha', price: 10000 },
+  { name: 'Forest', type_line: 'Basic Land — Forest', colors: [], color_identity: [], keywords: [], foil: 'normal', rarity: 'common', cmc: 0, setName: 'Alpha', price: 0.1 },
+  { name: 'Azorius Signet', type_line: 'Artifact', colors: [], color_identity: ['W', 'U'], keywords: [], foil: 'normal', rarity: 'uncommon', cmc: 2, setName: 'Ravnica', price: 1 }
 ];
 
 filters.test('Type filter - Instant', () => {
@@ -667,6 +668,33 @@ filters.test('Price range - Under $1', () => {
 filters.test('Price range - $5-$15', () => {
   const filtered = mockCollection.filter(c => c.price >= 5 && c.price <= 15);
   assertEquals(filtered.length, 3);
+});
+
+filters.test('Color identity - Red', () => {
+  const filtered = mockCollection.filter(c => 
+    c.color_identity.every(color => ['R'].includes(color))
+  );
+  assertEquals(filtered.length, 3); // Lightning Bolt, Black Lotus, Forest
+});
+
+filters.test('Color identity - White/Blue', () => {
+  const filtered = mockCollection.filter(c => 
+    c.color_identity.every(color => ['W', 'U'].includes(color))
+  );
+  assertEquals(filtered.length, 5); // Counterspell, Serra Angel, Black Lotus, Forest, Azorius Signet
+});
+
+filters.test('Color identity - Colorless only', () => {
+  const filtered = mockCollection.filter(c => c.color_identity.length === 0);
+  assertEquals(filtered.length, 2); // Black Lotus, Forest
+});
+
+filters.test('Color identity - Multicolor artifact', () => {
+  const filtered = mockCollection.filter(c => 
+    c.type_line.includes('Artifact') && c.color_identity.length > 1
+  );
+  assertEquals(filtered.length, 1);
+  assertEquals(filtered[0].name, 'Azorius Signet');
 });
 
 // Run all tests

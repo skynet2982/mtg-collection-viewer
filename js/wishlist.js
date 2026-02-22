@@ -108,6 +108,7 @@ function scryfallToCard(card, foil = 'normal') {
     types: card.type_line,
     type_line: card.type_line,
     colors: card.colors || [],
+    color_identity: card.color_identity || [],
     keywords: card.keywords || [],
     manaCost: card.mana_cost || '',
     cmc: card.cmc || 0
@@ -649,6 +650,11 @@ function setupEventListeners() {
   document.getElementById('keyword-filter')?.addEventListener('change', applyFilters);
   document.getElementById('sort').addEventListener('change', applyFilters);
   
+  // Color identity checkboxes
+  document.querySelectorAll('.color-checkboxes input').forEach(cb => {
+    cb.addEventListener('change', applyFilters);
+  });
+  
   document.getElementById('clear-filters').addEventListener('click', () => {
     document.getElementById('search').value = '';
     document.getElementById('set-filter').value = '';
@@ -659,6 +665,7 @@ function setupEventListeners() {
     document.getElementById('color-filter').value = '';
     if (document.getElementById('keyword-filter')) document.getElementById('keyword-filter').value = '';
     document.getElementById('sort').value = 'price-desc';
+    document.querySelectorAll('.color-checkboxes input').forEach(cb => cb.checked = false);
     if (priceSlider) priceSlider.set([0, maxPriceValue]);
     applyFilters();
   });

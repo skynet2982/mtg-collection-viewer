@@ -204,6 +204,7 @@ async function fetchCardsFromScryfall(scryfallIds) {
             imageUrl: card.image_uris?.normal || card.card_faces?.[0]?.image_uris?.normal,
             type_line: card.type_line,
             colors: card.colors || [],
+            color_identity: card.color_identity || [],
             keywords: card.keywords || [],
             manaCost: card.mana_cost || '',
             cmc: card.cmc || 0
