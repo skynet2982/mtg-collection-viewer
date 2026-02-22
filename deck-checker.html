@@ -506,8 +506,21 @@
           }
         }
         
-        if (wishlistCards.has(card.name.toLowerCase())) {
-          wishlistCards.get(card.name.toLowerCase()).forEach(v => allVersions.push({...v, _fromWishlist: true}));
+        // Also check wishlist (by name, or oracle_id for alternate names/DFCs)
+        let wlVersions = wishlistCards.get(card.name.toLowerCase());
+        if (!wlVersions) {
+          const ownedOracleId = allVersions[0]?.oracle_id || (await getCardData(card.scryfallId))?.oracle_id;
+          if (ownedOracleId) {
+            for (const [, versions] of wishlistCards.entries()) {
+              if (versions.some(v => v.oracle_id === ownedOracleId)) {
+                wlVersions = versions;
+                break;
+              }
+            }
+          }
+        }
+        if (wlVersions) {
+          wlVersions.forEach(v => allVersions.push({...v, _fromWishlist: true}));
         }
         
         if (allVersions.length > 1) {
