@@ -1075,6 +1075,730 @@ dcw.test('Non-foil wishlist IDs are unchanged after strip', () => {
   assertEquals(stripped, 'abc123');
 });
 
+// === CSV Parsing ===
+const csv = suite('CSV Parsing');
+
+csv.test('Simple CSV line', () => {
+  function parseCSVLine(line) {
+    const result = []; let current = '', inQuotes = false;
+    for (const char of line) {
+      if (char === '"') inQuotes = !inQuotes;
+      else if (char === ',' && !inQuotes) { result.push(current); current = ''; }
+      else current += char;
+    }
+    result.push(current);
+    return result;
+  }
+  const r = parseCSVLine('Lightning Bolt,LEA,Alpha,161');
+  assertEquals(r.length, 4);
+  assertEquals(r[0], 'Lightning Bolt');
+  assertEquals(r[1], 'LEA');
+});
+
+csv.test('Quoted fields with commas', () => {
+  function parseCSVLine(line) {
+    const result = []; let current = '', inQuotes = false;
+    for (const char of line) {
+      if (char === '"') inQuotes = !inQuotes;
+      else if (char === ',' && !inQuotes) { result.push(current); current = ''; }
+      else current += char;
+    }
+    result.push(current);
+    return result;
+  }
+  const r = parseCSVLine('"Jace, the Mind Sculptor",WWK,"Worldwake"');
+  assertEquals(r[0], 'Jace, the Mind Sculptor');
+  assertEquals(r[1], 'WWK');
+});
+
+csv.test('Empty fields', () => {
+  function parseCSVLine(line) {
+    const result = []; let current = '', inQuotes = false;
+    for (const char of line) {
+      if (char === '"') inQuotes = !inQuotes;
+      else if (char === ',' && !inQuotes) { result.push(current); current = ''; }
+      else current += char;
+    }
+    result.push(current);
+    return result;
+  }
+  const r = parseCSVLine('Name,,Set,,Price');
+  assertEquals(r.length, 5);
+  assertEquals(r[1], '');
+  assertEquals(r[3], '');
+});
+
+csv.test('Single field', () => {
+  function parseCSVLine(line) {
+    const result = []; let current = '', inQuotes = false;
+    for (const char of line) {
+      if (char === '"') inQuotes = !inQuotes;
+      else if (char === ',' && !inQuotes) { result.push(current); current = ''; }
+      else current += char;
+    }
+    result.push(current);
+    return result;
+  }
+  const r = parseCSVLine('OnlyField');
+  assertEquals(r.length, 1);
+  assertEquals(r[0], 'OnlyField');
+});
+
+csv.test('Empty string', () => {
+  function parseCSVLine(line) {
+    const result = []; let current = '', inQuotes = false;
+    for (const char of line) {
+      if (char === '"') inQuotes = !inQuotes;
+      else if (char === ',' && !inQuotes) { result.push(current); current = ''; }
+      else current += char;
+    }
+    result.push(current);
+    return result;
+  }
+  const r = parseCSVLine('');
+  assertEquals(r.length, 1);
+  assertEquals(r[0], '');
+});
+
+// === Price Logic ===
+const price = suite('Price Logic');
+
+price.test('formatPrice with USD', () => {
+  function formatPrice(p, currency = 'USD') {
+    if (!isFinite(p) || isNaN(p)) return '$0.00';
+    const symbols = { USD: '$', CAD: 'CA$', EUR: '€', GBP: '£', AUD: 'A$', JPY: '¥' };
+    const symbol = symbols[currency] || currency + ' ';
+    return `${symbol}${p.toFixed(2)}`;
+  }
+  assertEquals(formatPrice(12.5), '$12.50');
+});
+
+price.test('formatPrice with EUR', () => {
+  function formatPrice(p, currency = 'USD') {
+    if (!isFinite(p) || isNaN(p)) return '$0.00';
+    const symbols = { USD: '$', CAD: 'CA$', EUR: '€', GBP: '£', AUD: 'A$', JPY: '¥' };
+    const symbol = symbols[currency] || currency + ' ';
+    return `${symbol}${p.toFixed(2)}`;
+  }
+  assertEquals(formatPrice(9.99, 'EUR'), '€9.99');
+});
+
+price.test('formatPrice with NaN returns $0.00', () => {
+  function formatPrice(p, currency = 'USD') {
+    if (!isFinite(p) || isNaN(p)) return '$0.00';
+    const symbols = { USD: '$', CAD: 'CA$', EUR: '€', GBP: '£', AUD: 'A$', JPY: '¥' };
+    const symbol = symbols[currency] || currency + ' ';
+    return `${symbol}${p.toFixed(2)}`;
+  }
+  assertEquals(formatPrice(NaN), '$0.00');
+  assertEquals(formatPrice(Infinity), '$0.00');
+});
+
+price.test('formatPrice with zero', () => {
+  function formatPrice(p, currency = 'USD') {
+    if (!isFinite(p) || isNaN(p)) return '$0.00';
+    const symbols = { USD: '$', CAD: 'CA$', EUR: '€', GBP: '£', AUD: 'A$', JPY: '¥' };
+    const symbol = symbols[currency] || currency + ' ';
+    return `${symbol}${p.toFixed(2)}`;
+  }
+  assertEquals(formatPrice(0), '$0.00');
+});
+
+price.test('formatPrice with unknown currency uses code as prefix', () => {
+  function formatPrice(p, currency = 'USD') {
+    if (!isFinite(p) || isNaN(p)) return '$0.00';
+    const symbols = { USD: '$', CAD: 'CA$', EUR: '€', GBP: '£', AUD: 'A$', JPY: '¥' };
+    const symbol = symbols[currency] || currency + ' ';
+    return `${symbol}${p.toFixed(2)}`;
+  }
+  assertEquals(formatPrice(5, 'BRL'), 'BRL 5.00');
+});
+
+price.test('getCardPrice returns manabox price by default', () => {
+  function getCardPrice(card, priceSource) {
+    if (priceSource === 'scryfall' && card.scryfallPrices) {
+      const p = card.scryfallPrices;
+      if (card.foil === 'etched' && p.usd_etched) return parseFloat(p.usd_etched);
+      if (card.foil === 'foil' && p.usd_foil) return parseFloat(p.usd_foil);
+      if (p.usd) return parseFloat(p.usd);
+      return parseFloat(p.usd_foil || p.usd_etched || '0');
+    }
+    return card.price;
+  }
+  assertEquals(getCardPrice({ price: 3.50, scryfallPrices: { usd: '5.00' } }, 'manabox'), 3.50);
+});
+
+price.test('getCardPrice returns scryfall normal price', () => {
+  function getCardPrice(card, priceSource) {
+    if (priceSource === 'scryfall' && card.scryfallPrices) {
+      const p = card.scryfallPrices;
+      if (card.foil === 'etched' && p.usd_etched) return parseFloat(p.usd_etched);
+      if (card.foil === 'foil' && p.usd_foil) return parseFloat(p.usd_foil);
+      if (p.usd) return parseFloat(p.usd);
+      return parseFloat(p.usd_foil || p.usd_etched || '0');
+    }
+    return card.price;
+  }
+  assertEquals(getCardPrice({ foil: 'normal', scryfallPrices: { usd: '5.00', usd_foil: '10.00' } }, 'scryfall'), 5);
+});
+
+price.test('getCardPrice returns scryfall foil price', () => {
+  function getCardPrice(card, priceSource) {
+    if (priceSource === 'scryfall' && card.scryfallPrices) {
+      const p = card.scryfallPrices;
+      if (card.foil === 'etched' && p.usd_etched) return parseFloat(p.usd_etched);
+      if (card.foil === 'foil' && p.usd_foil) return parseFloat(p.usd_foil);
+      if (p.usd) return parseFloat(p.usd);
+      return parseFloat(p.usd_foil || p.usd_etched || '0');
+    }
+    return card.price;
+  }
+  assertEquals(getCardPrice({ foil: 'foil', scryfallPrices: { usd: '5.00', usd_foil: '10.00' } }, 'scryfall'), 10);
+});
+
+price.test('getCardPrice returns scryfall etched price', () => {
+  function getCardPrice(card, priceSource) {
+    if (priceSource === 'scryfall' && card.scryfallPrices) {
+      const p = card.scryfallPrices;
+      if (card.foil === 'etched' && p.usd_etched) return parseFloat(p.usd_etched);
+      if (card.foil === 'foil' && p.usd_foil) return parseFloat(p.usd_foil);
+      if (p.usd) return parseFloat(p.usd);
+      return parseFloat(p.usd_foil || p.usd_etched || '0');
+    }
+    return card.price;
+  }
+  assertEquals(getCardPrice({ foil: 'etched', scryfallPrices: { usd: '5.00', usd_etched: '15.00' } }, 'scryfall'), 15);
+});
+
+price.test('getCardPrice scryfall fallback when preferred price missing', () => {
+  function getCardPrice(card, priceSource) {
+    if (priceSource === 'scryfall' && card.scryfallPrices) {
+      const p = card.scryfallPrices;
+      if (card.foil === 'etched' && p.usd_etched) return parseFloat(p.usd_etched);
+      if (card.foil === 'foil' && p.usd_foil) return parseFloat(p.usd_foil);
+      if (p.usd) return parseFloat(p.usd);
+      return parseFloat(p.usd_foil || p.usd_etched || '0');
+    }
+    return card.price;
+  }
+  // Foil card but no usd_foil price, falls through to usd
+  assertEquals(getCardPrice({ foil: 'foil', scryfallPrices: { usd: '5.00' } }, 'scryfall'), 5);
+});
+
+// === Card Type Detection ===
+const types = suite('Card Type Detection');
+
+types.test('Detects Creature', () => {
+  function getMainType(typeLine) {
+    if (!typeLine) return null;
+    return ['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land', 'Planeswalker'].find(t => typeLine.includes(t));
+  }
+  assertEquals(getMainType('Creature — Human Wizard'), 'Creature');
+});
+
+types.test('Detects Artifact Creature as Creature', () => {
+  function getMainType(typeLine) {
+    if (!typeLine) return null;
+    return ['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land', 'Planeswalker'].find(t => typeLine.includes(t));
+  }
+  assertEquals(getMainType('Artifact Creature — Golem'), 'Creature');
+});
+
+types.test('Detects Instant', () => {
+  function getMainType(typeLine) {
+    if (!typeLine) return null;
+    return ['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land', 'Planeswalker'].find(t => typeLine.includes(t));
+  }
+  assertEquals(getMainType('Instant'), 'Instant');
+});
+
+types.test('Detects Land', () => {
+  function getMainType(typeLine) {
+    if (!typeLine) return null;
+    return ['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land', 'Planeswalker'].find(t => typeLine.includes(t));
+  }
+  assertEquals(getMainType('Basic Land — Island'), 'Land');
+});
+
+types.test('Detects Planeswalker', () => {
+  function getMainType(typeLine) {
+    if (!typeLine) return null;
+    return ['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land', 'Planeswalker'].find(t => typeLine.includes(t));
+  }
+  assertEquals(getMainType('Legendary Planeswalker — Jace'), 'Planeswalker');
+});
+
+types.test('Detects Enchantment', () => {
+  function getMainType(typeLine) {
+    if (!typeLine) return null;
+    return ['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land', 'Planeswalker'].find(t => typeLine.includes(t));
+  }
+  assertEquals(getMainType('Enchantment — Aura'), 'Enchantment');
+});
+
+types.test('Returns null for empty type line', () => {
+  function getMainType(typeLine) {
+    if (!typeLine) return null;
+    return ['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land', 'Planeswalker'].find(t => typeLine.includes(t));
+  }
+  assertEquals(getMainType(null), null);
+  assertEquals(getMainType(''), undefined);
+});
+
+types.test('Detects Sorcery', () => {
+  function getMainType(typeLine) {
+    if (!typeLine) return null;
+    return ['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land', 'Planeswalker'].find(t => typeLine.includes(t));
+  }
+  assertEquals(getMainType('Sorcery'), 'Sorcery');
+});
+
+types.test('Detects Artifact', () => {
+  function getMainType(typeLine) {
+    if (!typeLine) return null;
+    return ['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land', 'Planeswalker'].find(t => typeLine.includes(t));
+  }
+  assertEquals(getMainType('Artifact — Equipment'), 'Artifact');
+});
+
+// === Color Matching ===
+const color = suite('Color Matching');
+
+function matchCardColor(card, filter) {
+  if (!card.colors) return false;
+  if (filter === 'C') return card.colors.length === 0;
+  if (filter === 'M') return card.colors.length > 1;
+  return card.colors.includes(filter);
+}
+
+function matchColorIdentity(card, selectedColors) {
+  if (!card.color_identity) return false;
+  if (selectedColors.includes('C') && card.color_identity.length === 0) return true;
+  const colorsOnly = selectedColors.filter(c => c !== 'C');
+  if (colorsOnly.length === 0) return false;
+  return card.color_identity.every(c => colorsOnly.includes(c));
+}
+
+color.test('matchCardColor: White card matches W', () => {
+  assert(matchCardColor({ colors: ['W'] }, 'W'));
+});
+
+color.test('matchCardColor: Multicolor card matches M', () => {
+  assert(matchCardColor({ colors: ['W', 'U'] }, 'M'));
+});
+
+color.test('matchCardColor: Colorless card matches C', () => {
+  assert(matchCardColor({ colors: [] }, 'C'));
+});
+
+color.test('matchCardColor: Mono card does not match M', () => {
+  assert(!matchCardColor({ colors: ['R'] }, 'M'));
+});
+
+color.test('matchCardColor: No colors field returns false', () => {
+  assert(!matchCardColor({}, 'W'));
+});
+
+color.test('matchCardColor: Colorless does not match W', () => {
+  assert(!matchCardColor({ colors: [] }, 'W'));
+});
+
+color.test('matchColorIdentity: Mono W card in W identity', () => {
+  assert(matchColorIdentity({ color_identity: ['W'] }, ['W']));
+});
+
+color.test('matchColorIdentity: WU card in WUB identity (subset)', () => {
+  assert(matchColorIdentity({ color_identity: ['W', 'U'] }, ['W', 'U', 'B']));
+});
+
+color.test('matchColorIdentity: WU card NOT in W-only identity', () => {
+  assert(!matchColorIdentity({ color_identity: ['W', 'U'] }, ['W']));
+});
+
+color.test('matchColorIdentity: Colorless card matches C selection', () => {
+  assert(matchColorIdentity({ color_identity: [] }, ['C']));
+});
+
+color.test('matchColorIdentity: Colorless card does NOT match W', () => {
+  assert(!matchColorIdentity({ color_identity: [] }, ['W']));
+});
+
+color.test('matchColorIdentity: No color_identity returns false', () => {
+  assert(!matchColorIdentity({}, ['W']));
+});
+
+color.test('matchColorIdentity: 5-color card in 5-color identity', () => {
+  assert(matchColorIdentity({ color_identity: ['W', 'U', 'B', 'R', 'G'] }, ['W', 'U', 'B', 'R', 'G']));
+});
+
+color.test('matchColorIdentity: C only selection with no other colors returns false for colored card', () => {
+  assert(!matchColorIdentity({ color_identity: ['W'] }, ['C']));
+});
+
+// === Deck List Parsing ===
+const dlp = suite('Deck List Parsing');
+
+function parseDeckList(text) {
+  const cards = [];
+  const lines = text.trim().split('\n');
+  for (const line of lines) {
+    let trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('#')) continue;
+    const match = trimmed.match(/^(\d+)x?\s+(.+)/);
+    const quantity = match ? parseInt(match[1]) : 1;
+    const rest = match ? match[2] : trimmed;
+    let name = rest.split('(')[0].trim();
+    name = name.replace(/\s\/\s/g, ' // ');
+    if (name) cards.push({ name: name.toLowerCase(), quantity });
+  }
+  return cards;
+}
+
+dlp.test('Standard format: "4 Lightning Bolt"', () => {
+  const r = parseDeckList('4 Lightning Bolt');
+  assertEquals(r.length, 1);
+  assertEquals(r[0].name, 'lightning bolt');
+  assertEquals(r[0].quantity, 4);
+});
+
+dlp.test('Format with x: "4x Lightning Bolt"', () => {
+  const r = parseDeckList('4x Lightning Bolt');
+  assertEquals(r[0].quantity, 4);
+  assertEquals(r[0].name, 'lightning bolt');
+});
+
+dlp.test('No quantity defaults to 1', () => {
+  const r = parseDeckList('Lightning Bolt');
+  assertEquals(r[0].quantity, 1);
+});
+
+dlp.test('Strips set info in parentheses', () => {
+  const r = parseDeckList('1 Lightning Bolt (LEA) 161');
+  assertEquals(r[0].name, 'lightning bolt');
+});
+
+dlp.test('Normalizes single slash to double slash (DFC)', () => {
+  const r = parseDeckList('1 Delver of Secrets / Insectile Aberration');
+  assertEquals(r[0].name, 'delver of secrets // insectile aberration');
+});
+
+dlp.test('Skips comments with //', () => {
+  const r = parseDeckList('// Sideboard\n2 Negate');
+  assertEquals(r.length, 1);
+  assertEquals(r[0].name, 'negate');
+});
+
+dlp.test('Skips comments with #', () => {
+  const r = parseDeckList('# Main deck\n1 Sol Ring');
+  assertEquals(r.length, 1);
+});
+
+dlp.test('Skips empty lines', () => {
+  const r = parseDeckList('1 Sol Ring\n\n2 Mana Crypt\n  \n');
+  assertEquals(r.length, 2);
+});
+
+dlp.test('Multiple cards parsed correctly', () => {
+  const r = parseDeckList('4 Lightning Bolt\n4 Counterspell\n2 Brainstorm');
+  assertEquals(r.length, 3);
+  assertEquals(r[0].quantity, 4);
+  assertEquals(r[2].quantity, 2);
+  assertEquals(r[2].name, 'brainstorm');
+});
+
+dlp.test('Card with comma in name', () => {
+  const r = parseDeckList('1 Jace, the Mind Sculptor');
+  assertEquals(r[0].name, 'jace, the mind sculptor');
+});
+
+dlp.test('All names are lowercased', () => {
+  const r = parseDeckList('1 LIGHTNING BOLT\n1 Sol Ring');
+  assertEquals(r[0].name, 'lightning bolt');
+  assertEquals(r[1].name, 'sol ring');
+});
+
+// === Binder Card State ===
+const bcs = suite('Binder Card State');
+
+function binderGetCardState(scryfallId, foil, binderCards, persistedCards) {
+  const makeKey = (c) => `${c.scryfallId}:${c.foil || 'normal'}`;
+  const key = `${scryfallId}:${foil}`;
+  const inLocal = binderCards.some(c => makeKey(c) === key);
+  const inGit = persistedCards.some(c => makeKey(c) === key);
+  if (inLocal && inGit) return 'persisted';
+  if (inLocal && !inGit) return 'pending';
+  if (!inLocal && inGit) return 'removed';
+  return 'none';
+}
+
+bcs.test('Card in both local and git is persisted', () => {
+  const local = [{ scryfallId: 'a', foil: 'normal' }];
+  const git = [{ scryfallId: 'a', foil: 'normal' }];
+  assertEquals(binderGetCardState('a', 'normal', local, git), 'persisted');
+});
+
+bcs.test('Card in local only is pending', () => {
+  assertEquals(binderGetCardState('a', 'normal', [{ scryfallId: 'a', foil: 'normal' }], []), 'pending');
+});
+
+bcs.test('Card in git only is removed', () => {
+  assertEquals(binderGetCardState('a', 'normal', [], [{ scryfallId: 'a', foil: 'normal' }]), 'removed');
+});
+
+bcs.test('Card in neither is none', () => {
+  assertEquals(binderGetCardState('a', 'normal', [], []), 'none');
+});
+
+bcs.test('Same card different foil status are distinct', () => {
+  const local = [{ scryfallId: 'a', foil: 'foil' }];
+  const git = [{ scryfallId: 'a', foil: 'normal' }];
+  assertEquals(binderGetCardState('a', 'foil', local, git), 'pending');
+  assertEquals(binderGetCardState('a', 'normal', local, git), 'removed');
+});
+
+bcs.test('Foil defaults to normal when missing', () => {
+  const local = [{ scryfallId: 'a' }]; // no foil field
+  const git = [{ scryfallId: 'a', foil: 'normal' }];
+  assertEquals(binderGetCardState('a', 'normal', local, git), 'persisted');
+});
+
+// === Binder Sync Logic ===
+const bsync = suite('Binder Sync');
+
+function syncBinder(binderCards, persistedCards) {
+  const makeKey = (c) => `${c.scryfallId}:${c.foil || 'normal'}`;
+  const localKeys = binderCards.map(makeKey);
+  const persistedKeys = persistedCards.map(makeKey);
+  const localOnly = binderCards.filter(c => !persistedKeys.includes(makeKey(c)));
+  const removed = persistedCards.filter(p => !localKeys.includes(makeKey(p)));
+  return { localOnly, removed };
+}
+
+bsync.test('No changes when local matches git', () => {
+  const cards = [{ scryfallId: 'a', foil: 'normal' }, { scryfallId: 'b', foil: 'foil' }];
+  const { localOnly, removed } = syncBinder(cards, cards);
+  assertEquals(localOnly.length, 0);
+  assertEquals(removed.length, 0);
+});
+
+bsync.test('Detects locally added cards', () => {
+  const local = [{ scryfallId: 'a', foil: 'normal' }, { scryfallId: 'b', foil: 'normal' }];
+  const git = [{ scryfallId: 'a', foil: 'normal' }];
+  const { localOnly } = syncBinder(local, git);
+  assertEquals(localOnly.length, 1);
+  assertEquals(localOnly[0].scryfallId, 'b');
+});
+
+bsync.test('Detects removed cards', () => {
+  const local = [{ scryfallId: 'a', foil: 'normal' }];
+  const git = [{ scryfallId: 'a', foil: 'normal' }, { scryfallId: 'b', foil: 'normal' }];
+  const { removed } = syncBinder(local, git);
+  assertEquals(removed.length, 1);
+  assertEquals(removed[0].scryfallId, 'b');
+});
+
+bsync.test('Foil change detected as add + remove', () => {
+  const local = [{ scryfallId: 'a', foil: 'foil' }];
+  const git = [{ scryfallId: 'a', foil: 'normal' }];
+  const { localOnly, removed } = syncBinder(local, git);
+  assertEquals(localOnly.length, 1);
+  assertEquals(removed.length, 1);
+});
+
+bsync.test('Empty binder and empty git', () => {
+  const { localOnly, removed } = syncBinder([], []);
+  assertEquals(localOnly.length, 0);
+  assertEquals(removed.length, 0);
+});
+
+// === Wishlist Card State ===
+const wcs = suite('Wishlist Card State');
+
+function wishlistGetCardState(scryfallId, wishlistCards, persistedCards) {
+  const inLocal = wishlistCards.some(c => c.scryfallId === scryfallId);
+  const inGit = persistedCards.some(c => c.scryfallId === scryfallId);
+  if (inLocal && inGit) return 'persisted';
+  if (inLocal && !inGit) return 'pending';
+  return 'none';
+}
+
+wcs.test('Card in both is persisted', () => {
+  assertEquals(wishlistGetCardState('a', [{ scryfallId: 'a' }], [{ scryfallId: 'a' }]), 'persisted');
+});
+
+wcs.test('Card in local only is pending', () => {
+  assertEquals(wishlistGetCardState('a', [{ scryfallId: 'a' }], []), 'pending');
+});
+
+wcs.test('Card in neither is none', () => {
+  assertEquals(wishlistGetCardState('a', [], []), 'none');
+});
+
+wcs.test('Foil suffix ID treated as distinct', () => {
+  assertEquals(wishlistGetCardState('a-foil', [{ scryfallId: 'a-foil' }], [{ scryfallId: 'a' }]), 'pending');
+});
+
+// === Scryfall Card Conversion ===
+const scc = suite('Scryfall Card Conversion');
+
+function scryfallToCard(card, foil = 'normal') {
+  return {
+    name: card.flavor_name || card.name,
+    oracleName: card.name,
+    scryfallId: card.id + (foil === 'foil' ? '-foil' : ''),
+    setCode: card.set.toUpperCase(),
+    setName: card.set_name,
+    collectorNumber: card.collector_number,
+    rarity: card.rarity,
+    foil,
+    quantity: 1,
+    price: parseFloat(foil === 'foil' ? (card.prices?.usd_foil || card.prices?.usd || '0') : (card.prices?.usd || card.prices?.usd_foil || '0')),
+    currency: 'USD',
+    scryfallPrices: card.prices,
+    imageUrl: card.image_uris?.normal || card.card_faces?.[0]?.image_uris?.normal,
+    types: card.type_line,
+    type_line: card.type_line,
+    colors: card.colors || [],
+    color_identity: card.color_identity || [],
+    keywords: card.keywords || [],
+    manaCost: card.mana_cost || '',
+    cmc: card.cmc || 0
+  };
+}
+
+const mockScryfallCard = {
+  id: 'abc123', name: 'Lightning Bolt', set: 'lea', set_name: 'Alpha',
+  collector_number: '161', rarity: 'common', type_line: 'Instant',
+  colors: ['R'], color_identity: ['R'], keywords: [],
+  mana_cost: '{R}', cmc: 1,
+  prices: { usd: '5.00', usd_foil: '10.00' },
+  image_uris: { normal: 'https://img.scryfall.com/bolt.jpg' }
+};
+
+scc.test('Normal card conversion', () => {
+  const c = scryfallToCard(mockScryfallCard);
+  assertEquals(c.name, 'Lightning Bolt');
+  assertEquals(c.scryfallId, 'abc123');
+  assertEquals(c.setCode, 'LEA');
+  assertEquals(c.foil, 'normal');
+  assertEquals(c.price, 5);
+  assertEquals(c.rarity, 'common');
+});
+
+scc.test('Foil card conversion appends -foil to ID', () => {
+  const c = scryfallToCard(mockScryfallCard, 'foil');
+  assertEquals(c.scryfallId, 'abc123-foil');
+  assertEquals(c.foil, 'foil');
+  assertEquals(c.price, 10);
+});
+
+scc.test('Flavor name used when present', () => {
+  const c = scryfallToCard({ ...mockScryfallCard, flavor_name: 'Zappy Zap' });
+  assertEquals(c.name, 'Zappy Zap');
+  assertEquals(c.oracleName, 'Lightning Bolt');
+});
+
+scc.test('oracleName always uses real name', () => {
+  const c = scryfallToCard({ ...mockScryfallCard, flavor_name: 'Zappy Zap' });
+  assertEquals(c.oracleName, 'Lightning Bolt');
+});
+
+scc.test('Missing prices default to 0', () => {
+  const c = scryfallToCard({ ...mockScryfallCard, prices: {} });
+  assertEquals(c.price, 0);
+});
+
+scc.test('Foil price falls back to normal when usd_foil missing', () => {
+  const c = scryfallToCard({ ...mockScryfallCard, prices: { usd: '3.00' } }, 'foil');
+  assertEquals(c.price, 3);
+});
+
+scc.test('Normal price falls back to foil when usd missing', () => {
+  const c = scryfallToCard({ ...mockScryfallCard, prices: { usd_foil: '8.00' } }, 'normal');
+  assertEquals(c.price, 8);
+});
+
+scc.test('DFC card uses first face image', () => {
+  const dfc = { ...mockScryfallCard, image_uris: null, card_faces: [{ image_uris: { normal: 'https://front.jpg' } }, { image_uris: { normal: 'https://back.jpg' } }] };
+  const c = scryfallToCard(dfc);
+  assertEquals(c.imageUrl, 'https://front.jpg');
+});
+
+scc.test('Missing colors/keywords default to empty arrays', () => {
+  const c = scryfallToCard({ ...mockScryfallCard, colors: undefined, keywords: undefined, color_identity: undefined });
+  assertEquals(c.colors.length, 0);
+  assertEquals(c.keywords.length, 0);
+  assertEquals(c.color_identity.length, 0);
+});
+
+scc.test('Set code is uppercased', () => {
+  const c = scryfallToCard({ ...mockScryfallCard, set: 'mh2' });
+  assertEquals(c.setCode, 'MH2');
+});
+
+scc.test('CMC defaults to 0 when missing', () => {
+  const c = scryfallToCard({ ...mockScryfallCard, cmc: undefined });
+  assertEquals(c.cmc, 0);
+});
+
+// === Render Card HTML ===
+const rchtml = suite('Render Card HTML');
+
+function mockRenderCardHTML(card, nameCounts = {}) {
+  function getMainType(typeLine) {
+    if (!typeLine) return null;
+    return ['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land', 'Planeswalker'].find(t => typeLine.includes(t));
+  }
+  const foilClass = card.foil !== 'normal' ? card.foil : '';
+  const mainType = getMainType(card.type_line);
+  const duplicateKey = card.oracle_id || card.name;
+  const hasDuplicateName = nameCounts[duplicateKey] > 1;
+  return { foilClass, mainType, hasDuplicateName, card };
+}
+
+rchtml.test('Foil card gets foil class', () => {
+  const r = mockRenderCardHTML({ foil: 'foil', name: 'Test', type_line: 'Instant' });
+  assertEquals(r.foilClass, 'foil');
+});
+
+rchtml.test('Normal card gets empty foil class', () => {
+  const r = mockRenderCardHTML({ foil: 'normal', name: 'Test', type_line: 'Instant' });
+  assertEquals(r.foilClass, '');
+});
+
+rchtml.test('Etched card gets etched class', () => {
+  const r = mockRenderCardHTML({ foil: 'etched', name: 'Test', type_line: 'Instant' });
+  assertEquals(r.foilClass, 'etched');
+});
+
+rchtml.test('Duplicate detection by oracle_id', () => {
+  const counts = { 'oracle-1': 2 };
+  const r = mockRenderCardHTML({ foil: 'normal', name: 'Bolt', oracle_id: 'oracle-1', type_line: 'Instant' }, counts);
+  assert(r.hasDuplicateName === true);
+});
+
+rchtml.test('No duplicate when count is 1', () => {
+  const counts = { 'oracle-1': 1 };
+  const r = mockRenderCardHTML({ foil: 'normal', name: 'Bolt', oracle_id: 'oracle-1', type_line: 'Instant' }, counts);
+  assert(!r.hasDuplicateName);
+});
+
+rchtml.test('Duplicate falls back to name when no oracle_id', () => {
+  const counts = { 'Lightning Bolt': 3 };
+  const r = mockRenderCardHTML({ foil: 'normal', name: 'Lightning Bolt', type_line: 'Instant' }, counts);
+  assert(r.hasDuplicateName === true);
+});
+
+rchtml.test('Type badge extracted from type_line', () => {
+  const r = mockRenderCardHTML({ foil: 'normal', name: 'Test', type_line: 'Legendary Creature — Dragon' });
+  assertEquals(r.mainType, 'Creature');
+});
+
+rchtml.test('No type badge for null type_line', () => {
+  const r = mockRenderCardHTML({ foil: 'normal', name: 'Test', type_line: null });
+  assertEquals(r.mainType, null);
+});
+
 // Run all tests
 Object.keys(suites).forEach(suiteName => {
   suites[suiteName].forEach(({ name, fn }) => {
