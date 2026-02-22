@@ -346,11 +346,11 @@
       
       // Second pass: check Scryfall for alternate names (flavor names)
       for (const card of toCheckScryfall) {
-        const alternateMatch = await checkAlternateNames(card.name);
-        if (alternateMatch) {
-          owned.push({ ...card, scryfallId: alternateMatch.scryfallId, type_line: alternateMatch.type_line });
+        const { match, scryfallCard } = await checkAlternateNames(card.name);
+        if (match) {
+          owned.push({ ...card, scryfallId: match.scryfallId, type_line: match.type_line });
         } else {
-          missing.push(card);
+          missing.push({ ...card, oracle_id: scryfallCard?.oracle_id, realName: scryfallCard?.name?.toLowerCase() });
         }
       }
       
@@ -360,21 +360,21 @@
     async function checkAlternateNames(cardName) {
       try {
         const response = await fetch(`https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(cardName)}`);
-        if (!response.ok) return null;
+        if (!response.ok) return { match: null, scryfallCard: null };
         const card = await response.json();
         
         // Check oracle_id against all cards in collection
         for (const [name, data] of collectionNames.entries()) {
           const cached = await getCardData(data.scryfallId);
           if (cached?.oracle_id === card.oracle_id) {
-            return data;
+            return { match: data, scryfallCard: card };
           }
         }
         
-        return null;
+        return { match: null, scryfallCard: card };
       } catch (e) {
         console.error('Error checking alternate names:', e);
-        return null;
+        return { match: null, scryfallCard: null };
       }
     }
 
@@ -520,23 +520,15 @@
       // Convert missing cards that are on the wishlist
       for (const card of currentMissingCards) {
         const name = card.name.toLowerCase();
-        let wlVersions = null;
-        if (wishlistCards.has(name)) {
-          wlVersions = wishlistCards.get(name);
-        } else {
-          // Try alternate name lookup via oracle_id
-          try {
-            const res = await fetch(`https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(card.name)}`);
-            if (res.ok) {
-              const data = await res.json();
-              for (const [wlName, versions] of wishlistCards.entries()) {
-                if (versions.some(v => v.oracle_id === data.oracle_id)) {
-                  wlVersions = versions;
-                  break;
-                }
-              }
+        let wlVersions = wishlistCards.get(name) || wishlistCards.get(card.realName) || null;
+        // Fallback: match by oracle_id
+        if (!wlVersions && card.oracle_id) {
+          for (const [, versions] of wishlistCards.entries()) {
+            if (versions.some(v => v.oracle_id === card.oracle_id)) {
+              wlVersions = versions;
+              break;
             }
-          } catch (e) {}
+          }
         }
         if (wlVersions) {
           const tagged = wlVersions.map(v => ({...v, _fromWishlist: true}));
