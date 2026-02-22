@@ -202,7 +202,7 @@ async function fetchCardsFromScryfall(scryfallIds) {
             currency: 'USD',
             scryfallPrices: card.prices,
             imageUrl: card.image_uris?.normal || card.card_faces?.[0]?.image_uris?.normal,
-            types: card.type_line,
+            type_line: card.type_line,
             colors: card.colors || [],
             keywords: card.keywords || [],
             manaCost: card.mana_cost || '',
@@ -349,7 +349,7 @@ async function loadBinder() {
   syncBinder();
   
   // Load full data for binder cards if needed
-  const needsData = binderCards.some(c => !c.types || !c.colors);
+  const needsData = binderCards.some(c => !c.type_line || !c.colors);
   if (needsData) {
     console.log('Loading full data for binder cards...');
     await loadFullCardData(() => {}, false);

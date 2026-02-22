@@ -644,6 +644,7 @@ function setupEventListeners() {
   document.getElementById('rarity-filter').addEventListener('change', applyFilters);
   document.getElementById('foil-filter')?.addEventListener('change', applyFilters);
   document.getElementById('type-filter').addEventListener('change', applyFilters);
+  document.getElementById('subtype-filter')?.addEventListener('input', applyFilters);
   document.getElementById('color-filter').addEventListener('change', applyFilters);
   document.getElementById('keyword-filter')?.addEventListener('change', applyFilters);
   document.getElementById('sort').addEventListener('change', applyFilters);
@@ -654,6 +655,7 @@ function setupEventListeners() {
     document.getElementById('rarity-filter').value = '';
     if (document.getElementById('foil-filter')) document.getElementById('foil-filter').value = '';
     document.getElementById('type-filter').value = '';
+    if (document.getElementById('subtype-filter')) document.getElementById('subtype-filter').value = '';
     document.getElementById('color-filter').value = '';
     if (document.getElementById('keyword-filter')) document.getElementById('keyword-filter').value = '';
     document.getElementById('sort').value = 'price-desc';

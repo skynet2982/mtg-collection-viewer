@@ -519,6 +519,156 @@ css.test('Filter group has position relative', () => {
   assert(rule.includes('position: relative'));
 });
 
+// ===== FILTER TESTS =====
+const filters = suite('Advanced Filters');
+
+// Mock collection data for filter tests
+const mockCollection = [
+  { name: 'Lightning Bolt', type_line: 'Instant', colors: ['R'], keywords: [], foil: 'normal', rarity: 'common', cmc: 1, setName: 'Alpha', price: 5 },
+  { name: 'Counterspell', type_line: 'Instant', colors: ['U'], keywords: [], foil: 'foil', rarity: 'uncommon', cmc: 2, setName: 'Beta', price: 10 },
+  { name: 'Llanowar Elves', type_line: 'Creature — Elf Druid', colors: ['G'], keywords: [], foil: 'normal', rarity: 'common', cmc: 1, setName: 'Alpha', price: 2 },
+  { name: 'Serra Angel', type_line: 'Creature — Angel', colors: ['W'], keywords: ['Flying', 'Vigilance'], foil: 'etched', rarity: 'rare', cmc: 5, setName: 'Beta', price: 15 },
+  { name: 'Black Lotus', type_line: 'Artifact', colors: [], keywords: [], foil: 'normal', rarity: 'mythic', cmc: 0, setName: 'Alpha', price: 10000 },
+  { name: 'Forest', type_line: 'Basic Land — Forest', colors: [], keywords: [], foil: 'normal', rarity: 'common', cmc: 0, setName: 'Alpha', price: 0.1 }
+];
+
+filters.test('Type filter - Instant', () => {
+  const filtered = mockCollection.filter(c => c.type_line.includes('Instant'));
+  assertEquals(filtered.length, 2);
+});
+
+filters.test('Type filter - Creature', () => {
+  const filtered = mockCollection.filter(c => c.type_line.includes('Creature'));
+  assertEquals(filtered.length, 2);
+});
+
+filters.test('Type filter - Artifact', () => {
+  const filtered = mockCollection.filter(c => c.type_line.includes('Artifact'));
+  assertEquals(filtered.length, 1);
+  assertEquals(filtered[0].name, 'Black Lotus');
+});
+
+filters.test('Type filter - Land', () => {
+  const filtered = mockCollection.filter(c => c.type_line.includes('Land'));
+  assertEquals(filtered.length, 1);
+});
+
+filters.test('Subtype filter - Elf', () => {
+  const filtered = mockCollection.filter(c => c.type_line.toLowerCase().includes('elf'));
+  assertEquals(filtered.length, 1);
+  assertEquals(filtered[0].name, 'Llanowar Elves');
+});
+
+filters.test('Subtype filter - Angel', () => {
+  const filtered = mockCollection.filter(c => c.type_line.toLowerCase().includes('angel'));
+  assertEquals(filtered.length, 1);
+  assertEquals(filtered[0].name, 'Serra Angel');
+});
+
+filters.test('Color filter - Red', () => {
+  const filtered = mockCollection.filter(c => c.colors.includes('R'));
+  assertEquals(filtered.length, 1);
+});
+
+filters.test('Color filter - Blue', () => {
+  const filtered = mockCollection.filter(c => c.colors.includes('U'));
+  assertEquals(filtered.length, 1);
+});
+
+filters.test('Color filter - Colorless', () => {
+  const filtered = mockCollection.filter(c => c.colors.length === 0);
+  assertEquals(filtered.length, 2); // Black Lotus and Forest
+});
+
+filters.test('Foil filter - Normal', () => {
+  const filtered = mockCollection.filter(c => c.foil === 'normal');
+  assertEquals(filtered.length, 4);
+});
+
+filters.test('Foil filter - Foil', () => {
+  const filtered = mockCollection.filter(c => c.foil === 'foil');
+  assertEquals(filtered.length, 1);
+  assertEquals(filtered[0].name, 'Counterspell');
+});
+
+filters.test('Foil filter - Etched', () => {
+  const filtered = mockCollection.filter(c => c.foil === 'etched');
+  assertEquals(filtered.length, 1);
+  assertEquals(filtered[0].name, 'Serra Angel');
+});
+
+filters.test('Rarity filter - Common', () => {
+  const filtered = mockCollection.filter(c => c.rarity === 'common');
+  assertEquals(filtered.length, 3);
+});
+
+filters.test('Rarity filter - Rare', () => {
+  const filtered = mockCollection.filter(c => c.rarity === 'rare');
+  assertEquals(filtered.length, 1);
+});
+
+filters.test('Rarity filter - Mythic', () => {
+  const filtered = mockCollection.filter(c => c.rarity === 'mythic');
+  assertEquals(filtered.length, 1);
+});
+
+filters.test('Keyword filter - Flying', () => {
+  const filtered = mockCollection.filter(c => c.keywords.includes('Flying'));
+  assertEquals(filtered.length, 1);
+  assertEquals(filtered[0].name, 'Serra Angel');
+});
+
+filters.test('Keyword filter - Vigilance', () => {
+  const filtered = mockCollection.filter(c => c.keywords.includes('Vigilance'));
+  assertEquals(filtered.length, 1);
+});
+
+filters.test('CMC filter - 0', () => {
+  const filtered = mockCollection.filter(c => c.cmc === 0);
+  assertEquals(filtered.length, 2); // Black Lotus and Forest
+});
+
+filters.test('CMC filter - 1', () => {
+  const filtered = mockCollection.filter(c => c.cmc === 1);
+  assertEquals(filtered.length, 2);
+});
+
+filters.test('Set filter - Alpha', () => {
+  const filtered = mockCollection.filter(c => c.setName.toLowerCase().includes('alpha'));
+  assertEquals(filtered.length, 4);
+});
+
+filters.test('Set filter - Beta', () => {
+  const filtered = mockCollection.filter(c => c.setName.toLowerCase().includes('beta'));
+  assertEquals(filtered.length, 2);
+});
+
+filters.test('Combined filters - Red Instant', () => {
+  const filtered = mockCollection.filter(c => 
+    c.type_line.includes('Instant') && c.colors.includes('R')
+  );
+  assertEquals(filtered.length, 1);
+  assertEquals(filtered[0].name, 'Lightning Bolt');
+});
+
+filters.test('Combined filters - Foil Creature', () => {
+  const filtered = mockCollection.filter(c => 
+    c.type_line.includes('Creature') && (c.foil === 'foil' || c.foil === 'etched')
+  );
+  assertEquals(filtered.length, 1);
+  assertEquals(filtered[0].name, 'Serra Angel');
+});
+
+filters.test('Price range - Under $1', () => {
+  const filtered = mockCollection.filter(c => c.price < 1);
+  assertEquals(filtered.length, 1);
+});
+
+filters.test('Price range - $5-$15', () => {
+  const filtered = mockCollection.filter(c => c.price >= 5 && c.price <= 15);
+  assertEquals(filtered.length, 3);
+});
+
 // Run all tests
 Object.keys(suites).forEach(suiteName => {
   suites[suiteName].forEach(({ name, fn }) => {
