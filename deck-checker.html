@@ -81,7 +81,7 @@
       </div>
       
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button type="button" id="convert-deck" class="convert-btn">Convert to Owned Versions</button>
+        <button type="button" id="convert-deck" class="convert-btn">Convert to Owned or Wished Versions</button>
         <button type="button" id="change-missing-versions" class="convert-btn">Change Missing Card Versions</button>
       </div>
       
@@ -127,6 +127,7 @@
 
     let collectionNames = new Map();
     let collectionCards = new Map();
+    let wishlistCards = new Map(); // name -> array of versions
     let currentDeckList = [];
     let currentOwnedCards = [];
     let currentMissingCards = [];
@@ -217,6 +218,81 @@
         }
         
         if (!collectionCards.has(name)) {
+          collectionCards.set(name, []);
+        }
+        collectionCards.get(name).push(cardVersion);
+      }
+      
+      // Load wishlist
+      await loadWishlist();
+    }
+    
+    async function loadWishlist() {
+      try {
+        const response = await fetch('data/wishlist.json');
+        if (!response.ok) return;
+        const data = await response.json();
+        const cards = data.cards || [];
+        
+        // Fetch card details from Scryfall
+        const batchSize = 75;
+        const uniqueIds = [...new Set(cards.map(c => c.scryfallId.replace(/-foil$/, '')))];
+        
+        for (let i = 0; i < uniqueIds.length; i += batchSize) {
+          const batch = uniqueIds.slice(i, i + batchSize);
+          const res = await fetch('https://api.scryfall.com/cards/collection', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identifiers: batch.map(id => ({ id })) })
+          });
+          
+          if (res.ok) {
+            const scryfallData = await res.json();
+            scryfallData.data.forEach(card => {
+              const name = card.name.toLowerCase();
+              
+              // Check which versions are in wishlist
+              const normalInWishlist = cards.some(c => c.scryfallId === card.id);
+              const foilInWishlist = cards.some(c => c.scryfallId === card.id + '-foil');
+              
+              if (!wishlistCards.has(name)) {
+                wishlistCards.set(name, []);
+              }
+              
+              if (normalInWishlist) {
+                wishlistCards.get(name).push({
+                  scryfallId: card.id,
+                  setCode: card.set.toUpperCase(),
+                  collectorNumber: card.collector_number,
+                  foil: 'normal',
+                  setName: card.set_name,
+                  oracle_id: card.oracle_id
+                });
+              }
+              
+              if (foilInWishlist) {
+                wishlistCards.get(name).push({
+                  scryfallId: card.id,
+                  setCode: card.set.toUpperCase(),
+                  collectorNumber: card.collector_number,
+                  foil: 'foil',
+                  setName: card.set_name,
+                  oracle_id: card.oracle_id
+                });
+              }
+            });
+          }
+          
+          if (i + batchSize < uniqueIds.length) {
+            await new Promise(r => setTimeout(r, 100));
+          }
+        }
+      } catch (e) {
+        console.log('No wishlist found or error loading:', e);
+      }
+    }
+    
+    function parseCSVLine(line) {
           collectionCards.set(name, []);
         }
         collectionCards.get(name).push(cardVersion);
@@ -422,24 +498,27 @@
       const selectedVersions = new Map();
       const multipleVersions = [];
       
-      // Only convert cards we own (from currentOwnedCards)
+      // Convert cards we own OR have in wishlist
       for (const card of currentOwnedCards) {
-        // Get all versions for this card (including alternate names)
+        // Get all versions for this card from collection AND wishlist
         const allVersions = [];
         
-        // Check exact name match first
+        // Check exact name match in collection
         if (collectionCards.has(card.name)) {
           allVersions.push(...collectionCards.get(card.name));
         } else {
           // Card was found via alternate name lookup during check
-          // We need to find which collection name it matches
           for (const [collectionName, versions] of collectionCards.entries()) {
-            // Check if any version matches the scryfallId we found during check
             if (versions.some(v => v.scryfallId === card.scryfallId)) {
               allVersions.push(...versions);
               break;
             }
           }
+        }
+        
+        // Also check wishlist
+        if (wishlistCards.has(card.name)) {
+          allVersions.push(...wishlistCards.get(card.name));
         }
         
         if (allVersions.length > 1) {
@@ -537,16 +616,24 @@
         modal.innerHTML = `
           <div class="version-modal">
             <h2>Select Card Versions</h2>
-            <p>You own multiple versions of these cards. Click to select which version to use:</p>
+            <p>Choose from owned or wishlisted versions:</p>
             <div class="version-list">
-              ${multipleVersions.map((card, idx) => `
+              ${multipleVersions.map((card, idx) => {
+                // Determine which versions are from wishlist
+                const wishlistVersions = wishlistCards.get(card.name) || [];
+                const wishlistIds = new Set(wishlistVersions.map(v => `${v.scryfallId}:${v.foil}`));
+                
+                return `
                 <div class="version-group">
                   <div class="version-card-name">${card.quantity}x ${card.name.charAt(0).toUpperCase() + card.name.slice(1)}</div>
                   <div class="version-cards">
-                    ${card.versions.map((v, vIdx) => `
+                    ${card.versions.map((v, vIdx) => {
+                      const isWishlisted = wishlistIds.has(`${v.scryfallId}:${v.foil}`);
+                      return `
                       <div class="version-card ${vIdx === 0 ? 'selected' : ''} ${v.foil !== 'normal' ? v.foil : ''}" 
                            data-card="${card.name}" 
                            data-version="${v.scryfallId}">
+                        ${isWishlisted ? '<div class="wishlist-badge" style="position:absolute;top:5px;right:5px;background:#9b59b6;color:white;padding:2px 6px;border-radius:4px;font-size:0.7em;z-index:1;">💫 Wishlist</div>' : ''}
                         <div class="version-card-inner">
                           <img src="https://cards.scryfall.io/normal/front/${v.scryfallId[0]}/${v.scryfallId[1]}/${v.scryfallId}.jpg" 
                                alt="${card.name}" 
@@ -559,10 +646,10 @@
                           <div class="version-code">${v.setCode.toUpperCase()} #${v.collectorNumber}${v.foil !== 'normal' ? ' *' + v.foil.charAt(0).toUpperCase() + '*' : ''}</div>
                         </div>
                       </div>
-                    `).join('')}
+                    `}).join('')}
                   </div>
                 </div>
-              `).join('')}
+              `}).join('')}
             </div>
             <div class="modal-actions">
               <button class="modal-btn confirm">Confirm Selection</button>
