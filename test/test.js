@@ -1799,6 +1799,100 @@ rchtml.test('No type badge for null type_line', () => {
   assertEquals(r.mainType, null);
 });
 
+// === Sort Order ===
+const sortOrder = suite('Sort Order');
+
+sortOrder.test('Price desc sort orders highest first', () => {
+  const cards = [
+    { name: 'A', price: 5, quantity: 1 },
+    { name: 'B', price: 50, quantity: 1 },
+    { name: 'C', price: 1, quantity: 1 }
+  ];
+  cards.sort((a, b) => (b.price * b.quantity) - (a.price * a.quantity));
+  assertEquals(cards[0].name, 'B');
+  assertEquals(cards[1].name, 'A');
+  assertEquals(cards[2].name, 'C');
+});
+
+sortOrder.test('Price asc sort orders lowest first', () => {
+  const cards = [
+    { name: 'A', price: 5, quantity: 1 },
+    { name: 'B', price: 50, quantity: 1 },
+    { name: 'C', price: 1, quantity: 1 }
+  ];
+  cards.sort((a, b) => (a.price * a.quantity) - (b.price * b.quantity));
+  assertEquals(cards[0].name, 'C');
+  assertEquals(cards[1].name, 'A');
+  assertEquals(cards[2].name, 'B');
+});
+
+sortOrder.test('Sort accounts for quantity', () => {
+  const cards = [
+    { name: 'A', price: 5, quantity: 4 },  // total 20
+    { name: 'B', price: 50, quantity: 1 }, // total 50
+    { name: 'C', price: 10, quantity: 3 }  // total 30
+  ];
+  cards.sort((a, b) => (b.price * b.quantity) - (a.price * a.quantity));
+  assertEquals(cards[0].name, 'B');
+  assertEquals(cards[1].name, 'C');
+  assertEquals(cards[2].name, 'A');
+});
+
+sortOrder.test('Sort stable after price update (simulates cache load)', () => {
+  const cards = [
+    { name: 'A', price: 5, quantity: 1 },
+    { name: 'B', price: 50, quantity: 1 },
+    { name: 'C', price: 1, quantity: 1 }
+  ];
+  // Initial sort
+  cards.sort((a, b) => (b.price * b.quantity) - (a.price * a.quantity));
+  assertEquals(cards[0].name, 'B');
+
+  // Simulate cached data changing prices
+  cards.find(c => c.name === 'C').price = 100;
+
+  // Re-sort (what the fix does)
+  cards.sort((a, b) => (b.price * b.quantity) - (a.price * a.quantity));
+  assertEquals(cards[0].name, 'C');
+  assertEquals(cards[1].name, 'B');
+  assertEquals(cards[2].name, 'A');
+});
+
+sortOrder.test('Sort without re-sort after price change is wrong', () => {
+  const cards = [
+    { name: 'A', price: 5, quantity: 1 },
+    { name: 'B', price: 50, quantity: 1 },
+    { name: 'C', price: 1, quantity: 1 }
+  ];
+  cards.sort((a, b) => (b.price * b.quantity) - (a.price * a.quantity));
+  // Mutate price without re-sorting
+  cards.find(c => c.name === 'C').price = 100;
+  // Order is now stale — C should be first but isn't
+  assert(cards[0].name !== 'C', 'Without re-sort, order is stale');
+});
+
+sortOrder.test('Name sort is alphabetical', () => {
+  const cards = [{ name: 'Zebra' }, { name: 'Apple' }, { name: 'Mango' }];
+  cards.sort((a, b) => a.name.localeCompare(b.name));
+  assertEquals(cards[0].name, 'Apple');
+  assertEquals(cards[2].name, 'Zebra');
+});
+
+sortOrder.test('CMC desc sort orders highest first', () => {
+  const cards = [{ name: 'A', cmc: 2 }, { name: 'B', cmc: 7 }, { name: 'C', cmc: 0 }];
+  cards.sort((a, b) => (b.cmc || 0) - (a.cmc || 0));
+  assertEquals(cards[0].name, 'B');
+  assertEquals(cards[2].name, 'C');
+});
+
+sortOrder.test('CMC sort handles missing cmc as 0', () => {
+  const cards = [{ name: 'A', cmc: 3 }, { name: 'B' }, { name: 'C', cmc: 1 }];
+  cards.sort((a, b) => (a.cmc || 0) - (b.cmc || 0));
+  assertEquals(cards[0].name, 'B');
+  assertEquals(cards[1].name, 'C');
+  assertEquals(cards[2].name, 'A');
+});
+
 // Run all tests
 Object.keys(suites).forEach(suiteName => {
   suites[suiteName].forEach(({ name, fn }) => {
