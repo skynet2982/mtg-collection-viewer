@@ -389,7 +389,7 @@ async function loadUpgrades(card, collectionCard) {
       }
     }
     expanded.sort((a, b) => a.price - b.price);
-    const upgrades = expanded.slice(0, 12);
+    const upgrades = expanded.filter(u => u.price > currentPrice).slice(0, 12);
     
     if (upgrades.length === 0) {
       document.getElementById('upgrades-section').innerHTML = '';
