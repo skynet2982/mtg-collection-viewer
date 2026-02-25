@@ -439,7 +439,7 @@ async function loadCollection() {
     return collection;
   }
   const text = await response.text();
-  const lines = text.split('\n');
+  const lines = text.replace(/\r/g, '').split('\n');
   const headerLine = lines[0];
   const headers = parseCSVLine(headerLine).map(h => h.trim().toLowerCase());
   
@@ -456,7 +456,7 @@ async function loadCollection() {
     price: headers.findIndex(h => h === 'price' || h === 'purchase price'),
     condition: headers.findIndex(h => h === 'condition'),
     language: headers.findIndex(h => h === 'language'),
-    currency: headers.findIndex(h => h === 'currency')
+    currency: headers.findIndex(h => h === 'currency' || h === 'purchase price currency')
   };
   
   collection = lines.slice(1)
